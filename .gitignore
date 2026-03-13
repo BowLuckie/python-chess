@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-desktop.ini
 Thumbs.db
 build/
 dist/
