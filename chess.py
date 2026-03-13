@@ -46,7 +46,7 @@ square_size = size // 8 # each square length is 80 pixels
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 
-icon = pygame.image.load("python chess/pieces/bp.png")
+icon = pygame.image.load("pieces/bp.png")
 pygame.display.set_icon(icon)
 
 white_turn = True
@@ -69,6 +69,8 @@ promotion_square: coordinate | None = None
 promotion_color: str | None = None
 promotion_options: list[coordinate] = []
 
+board_mode = "standard" # change to match keys in BOARDS dictionary
+
 # ------------------- LOAD PIECE IMAGES -------------------
 
 IMAGES = {}
@@ -77,45 +79,55 @@ pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
                "bp", "br", "bn", "bb", "bq", "bk"]
 
 for piece in pieces_list:
-    p = pygame.image.load("python chess/pieces/" + piece + ".png")
+    p = pygame.image.load("pieces/" + piece + ".png")
     IMAGES[piece] = pygame.transform.scale(p, (square_size, square_size))
 
 # ------------------- BOARD SETUP -------------------
 Board: TypeAlias = list[list[None | Piece]]
-def create_board() -> Board:
-    # board: list[list[None | Piece]] = [[None]*8 for _ in range(8)]
+def standard_board() -> Board:
+    board: list[list[None | Piece]] = [[None]*8 for _ in range(8)]
 
-    # # black pieces
-    # board[0] = [
-    #     Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
-    #     King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
-    # ]
-    # board[1] = [Pawn("b", "P") for _ in range(7)]
+    # black pieces
+    board[0] = [
+        Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
+        King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
+    ]
+    board[1] = [Pawn("b", "P") for _ in range(8)]
 
-    # # white pieces
-    # board[6] = [Pawn("w", "P") for _ in range(8)]
-    # board[7] = [
-    #     Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
-    #     King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
-    # ]
-
-    # Testing board: promotions
-    board: Board = [[None]*8 for _ in range(8)]
-
-    # White pawns ready to promote on row 6 (one move to row 7)
-    for col in range(8):
-        board[6][col] = Pawn("b", "P")
-
-    # Black pawns ready to promote on row 1 (one move to row 0)
-    for col in range(8):
-        board[1][col] = Pawn("w", "P")
-
-    # Place kings in the center of opposite rows
-    board[3][4] = King("w", "K")  # white king in center-bottom
-    board[4][4] = King("b", "N")  # black king in center-top
+    # white pieces
+    board[6] = [Pawn("w", "P") for _ in range(8)]
+    board[7] = [
+        Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
+        King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
+    ]
     return board
 
-board: Board = create_board()
+def promotion_test_board() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+    # white pawns ready to promote
+    for col in range(8):
+        board[6][col] = Pawn("w", "P")
+    # black pawns ready to promote
+    for col in range(8):
+        board[1][col] = Pawn("b", "P")
+    # kings in the center
+    board[3][4] = King("w", "K")
+    board[4][4] = King("b", "K")
+    return board
+
+def empty_board() -> Board:
+    return [[None]*8 for _ in range(8)]
+
+BOARDS = {
+    "standard": standard_board,
+    "promotion": promotion_test_board,
+    "empty": empty_board
+}
+
+board: Board = BOARDS[board_mode]()
+
+
+
 
 # ------------------- DRAWING FUNCTIONS -------------------
 
