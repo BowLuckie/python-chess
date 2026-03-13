@@ -17,7 +17,7 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, color, max_distance=8):
+def move_helper(board, row, col, directions, color, max_distance=8) -> list[coordinate]:
     moves: list[coordinate] = []
     for drow, dcol in directions:
         trow, tcol = row + drow, col + dcol
@@ -49,6 +49,10 @@ class Piece:
 
     def image_key(self):
         return self.color + self.name.lower()
+    
+    def get_attack_squares(self, board, row, col):
+        # to be overriden by the subclasses
+        return self.get_legal_moves(board, row, col) 
 
 class Pawn(Piece):
     def get_legal_moves(self, board, row, col):
@@ -105,10 +109,35 @@ class Queen(Piece):
         return move_helper(board, row, col, directions, self.color)
     
 class King(Piece):
+    castle = False
     def get_legal_moves(self, board, row, col):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         # max_distance=1 ensures only single-square moves
-        return move_helper(board, row, col, directions, self.color, max_distance=1)
+        moves: list[coordinate] = []
+        if not self.has_moved and not board[row][0].has_moved:
+            # check left side
+            rook_spot = board[row][0]
+            if (
+                board[row][1] is None 
+                and board[row][2] is None 
+                and board[row][3] is None 
+                and isinstance(rook_spot, Rook)
+                and not rook_spot.has_moved
+            ):
+                moves.append((row, 2))
+
+            # check right side
+            rook_spot = board[row][7]
+            if (
+                board[row][6] is None 
+                and board[row][5] is None 
+                and isinstance(rook_spot, Rook) # ensure end square is rook...
+                and not rook_spot.has_moved # ...and has not moved
+            ):
+                moves.append((row, 6))
+
+        moves += move_helper(board, row, col, directions, self.color, max_distance=1) # concatenate move calculated from castling to moves made from move helper
+        return moves
     
 if __name__ == '__main__':
     # --- ai generated code ---
