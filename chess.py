@@ -9,11 +9,11 @@
 # [/] Validate moves using get_legal_moves()
 # [/] Switch turns after valid move
 #
-# Piece logic [ ]
+# Piece logic [/]
 #
 # special rules
 # [ ] En passant
-# [ ] Promotion
+# [/] Promotion
 # [ ] Castling
 #
 # game rules
@@ -49,6 +49,9 @@ WIDTH, HEIGHT = size, size
 square_size = size // 8 # each square length is 80 pixels
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
+
+icon = pygame.image.load("python chess/pieces/bp.png")
+pygame.display.set_icon(icon)
 
 white_turn = True
 turn = "w" if white_turn else "b"
@@ -125,7 +128,7 @@ def draw_pieces(screen, board):
                 screen.blit(IMAGES[piece.image_key()],
                             (col * square_size, row * square_size))
 
-def draw_legal_moves(screen, moves):
+def draw_legal_moves(screen, moves: list[coordinate]):
     # creates a temp surface with an alpha channel and blits that to the main screen surface
     for row, col in moves:
         circle_surface = pygame.Surface((square_size, square_size), pygame.SRCALPHA)
@@ -150,7 +153,28 @@ def move_piece(origin: coordinate, destination: coordinate):
 
     white_turn = not white_turn # toggle the turn state
 
-    print(f"move piece at {origin} to {destination}")
+    piece = board[drow][dcol]
+    if piece is not None and hasattr(piece, "has_moved"): # checks if the peice has the "has_moved" attribute
+        piece.has_moved = True
+
+    # promotiom
+    if isinstance(piece, Pawn) and drow == 7 or drow == 0:
+        old_col = piece.color if piece is not None else "w"
+        board[drow][dcol] = Queen(old_col, "Q")
+
+    print(f"DEBUG: move piece at {origin} to {destination}")
+
+def draw_promotion(color):
+    options: list[str] = ["Q", "R", "B", "K"]
+    menu = pygame.Surface((square_size * 4, square_size))
+    for i, piece_name in enumerate(options):
+        prom_menu_img = IMAGES[color.lower() + piece_name.lower()]
+        menu.blit(prom_menu_img, (i * square_size, 0))
+    return menu, color
+    
+def display_prom_menu(color, screen=screen):
+    # @TODO
+    menu, color = draw_promotion(color=color)
     
 
 # ------------------- MOUSE CLICK -------------------
@@ -183,7 +207,6 @@ def piece_clicked():
     return None
 
 # ------------------- MAIN LOOP -------------------
-print("row col")
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
