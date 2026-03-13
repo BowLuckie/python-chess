@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 Thumbs.db
+desktop.ini
 build/
 dist/
 *.spec
