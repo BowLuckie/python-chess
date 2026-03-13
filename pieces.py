@@ -109,3 +109,19 @@ class King(Piece):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         # max_distance=1 ensures only single-square moves
         return move_helper(board, row, col, directions, self.color, max_distance=1)
+    
+if __name__ == '__main__':
+    # --- ai generated code ---
+    # when this module is executed as a script, delegate to the
+    # main chess program instead of trying to import the pieces again.
+    # we use subprocess to avoid creating a circular import: chess.py
+    # already imports this module at the top level.
+    import subprocess, sys, os
+
+    # figure out the path to the chess script relative to this file
+    script_dir = os.path.dirname(__file__)
+    chess_path = os.path.join(script_dir, 'chess.py')
+
+    # run the chess program with the same interpreter
+    subprocess.run([sys.executable, chess_path])
+    
