@@ -45,15 +45,26 @@ class Piece:
         self.has_moved = has_moved
 
     def get_legal_moves(self, board, row, col):
+        """
+        Return all legal destination squares for the piece from a given position.
+
+        Evaluates valid forward movement, optional extended movement from the
+        initial position, and diagonal captures against opposing pieces.
+        Moves are constrained by board boundaries and occupied squares.
+
+        Args:
+            board: 2D board structure containing piece objects or None.
+            row (int): Current row of the piece.
+            col (int): Current column of the piece.
+
+        Returns:
+            list[coordinate]: List of valid (row, col) squares the piece can move to.
+        """
         return []
 
     def image_key(self):
         return self.color + self.name.lower()
     
-    def get_attack_squares(self, board, row, col):
-        # to be overriden by the subclasses
-        return self.get_legal_moves(board, row, col) 
-
 class Pawn(Piece):
     def get_legal_moves(self, board, row, col):
         moves: list[coordinate] = []
@@ -109,35 +120,26 @@ class Queen(Piece):
         return move_helper(board, row, col, directions, self.color)
     
 class King(Piece):
-    castle = False
     def get_legal_moves(self, board, row, col):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        # max_distance=1 ensures only single-square moves
         moves: list[coordinate] = []
-        if hasattr(board[row][0], "has_moved"):
-            if not self.has_moved and not board[row][0].has_moved:
-                # check left side
-                rook_spot = board[row][0]
-                if (
-                    board[row][1] is None 
-                    and board[row][2] is None 
-                    and board[row][3] is None 
-                    and isinstance(rook_spot, Rook)
-                    and not rook_spot.has_moved
-                ):
-                    moves.append((row, 2))
-
-                # check right side
-                rook_spot = board[row][7]
-                if (
-                    board[row][6] is None 
-                    and board[row][5] is None 
-                    and isinstance(rook_spot, Rook) # ensure end square is rook...
-                    and not rook_spot.has_moved # ...and has not moved
-                ):
-                    moves.append((row, 6))
-
-        moves += move_helper(board, row, col, directions, self.color, max_distance=1) # concatenate move calculated from castling to moves made from move helper
+        
+        # Queenside castling
+        if not self.has_moved:
+            rook_spot = board[row][0]
+            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.color == self.color and not rook_spot.has_moved and
+                board[row][1] is None and board[row][2] is None and board[row][3] is None):
+                moves.append((row, 2))
+        
+        # Kingside castling
+        if not self.has_moved:
+            rook_spot = board[row][7]
+            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.color == self.color and not rook_spot.has_moved and
+                board[row][5] is None and board[row][6] is None):
+                moves.append((row, 6))
+        
+        # Normal king moves
+        moves += move_helper(board, row, col, directions, self.color, max_distance=1)
         return moves
     
 if __name__ == '__main__':
