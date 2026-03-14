@@ -25,6 +25,7 @@
 # UI improvements
 # [/] Highlight legal moves
 # [ ] Display check/checkmate message
+# [ ] flip board after each move
 #
 # code improvements
 # [/] Separate code into modules?
@@ -37,8 +38,6 @@
 import pygame
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
-
-
 
 # /----------- DATA/SETUP -----------/
 
@@ -218,7 +217,6 @@ def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
         y = (prow - 3) * square_size
         screen.blit(menu, (x, y))
 
-    
 # ------------------- LOGIC -------------------
 
 def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False):
@@ -227,8 +225,6 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
     
     gamestate.board[trow][tcol] = gamestate.board[orow][ocol] # dupe the piece into the new position
     gamestate.board[orow][ocol] = None # remove old piece
-
-   
 
     piece = gamestate.board[trow][tcol]
     if piece is not None and hasattr(piece, "has_moved") and not simulate: # checks if the peice has the "has_moved" attribute
@@ -317,8 +313,10 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate):
 
     orig_piece = gamestate.board[orow][ocol]
     target_piece = gamestate.board[trow][tcol]
+
     white_king_pos = gamestate.white_king_pos
     black_king_pos = gamestate.black_king_pos
+
     promotion_active = gamestate.promotion_active
     promotion_square = gamestate.promotion_square
     promotion_color = gamestate.promotion_color
@@ -347,11 +345,13 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate):
     else:
         in_check = False
 
-    # Undo move
+    # return to original state
     gamestate.board[orow][ocol] = orig_piece
     gamestate.board[trow][tcol] = target_piece
+
     gamestate.white_king_pos = white_king_pos
     gamestate.black_king_pos = black_king_pos
+
     gamestate.promotion_active = promotion_active
     gamestate.promotion_square = promotion_square
     gamestate.promotion_color = promotion_color
@@ -434,10 +434,12 @@ while running:
     draw_board(screen, highlighted=gamestate.selected_square)
     draw_legal_moves(screen, gamestate.legal_moves)
     draw_pieces(screen, gamestate.board)
+
     if gamestate.promotion_active and gamestate.promotion_square:
         piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
         if piece is not None:
             display_prom_menu(piece.color, gamestate.promotion_square)
+
     pygame.display.flip()
 
 pygame.quit()
