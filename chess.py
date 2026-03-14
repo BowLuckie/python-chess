@@ -19,6 +19,7 @@
 # game rules
 # [/] Check detection
 # [/] Prevent moves that leave king in check
+# [ ] display checks
 # [ ] Checkmate detection
 # [ ] Stalemate detection
 #
@@ -44,6 +45,7 @@ from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 # aliases
 coordinate: TypeAlias = tuple[int, int]
 Board: TypeAlias = list[list[None | Piece]]
+Color: TypeAlias = tuple[int, int, int]
 
 # ------------------- BOARD SETUP -------------------
 def standard_board() -> Board:
@@ -72,9 +74,8 @@ def promotion_test_board() -> Board:
     # black pawns ready to promote
     for col in range(8):
         board[1][col] = Pawn("b", "P")
-    # kings in the center
-    board[0][4] = King("w", "K")
-    board[7][4] = King("b", "K")
+    board[7][4] = King("w", "K")
+    board[0][4] = King("b", "K")
     return board
 
 def empty_board() -> Board:
@@ -95,14 +96,22 @@ def castling_test_board() -> Board:
 
     return board
 
+def check_test_board() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+    board[7][4] = King("w", "K")
+    board[0][4] = King("b", "K")
+    board[1][3] = Queen("b", "Q")
+    return board
+
 BOARDS = {
     "standard": standard_board,
     "promotion": promotion_test_board,
     "empty": empty_board,
     "castling": castling_test_board,
+    "check": check_test_board
 }
 
-board_mode = "promotion" # change to match keys in BOARDS dictionary
+board_mode = "check" # change to match keys in BOARDS dictionary
 
 class GameState:  # this class contains all the mutable variables that migtht need to be accsed throughout the code
     def __init__(self):
@@ -134,11 +143,12 @@ pygame.display.set_icon(icon)
 
 running = True
 
-light = 237, 214, 176
-dark = 184, 135, 98
-colors = [light, dark] 
-light_selected = (247, 235, 114)
-dark_selected = (220, 196, 75)
+light: Color = 237, 214, 176
+dark: Color = 184, 135, 98
+colors: list[Color] = [light, dark] 
+light_selected: Color = 247, 235, 114
+dark_selected: Color = 220, 196, 75
+checked_col: Color = 255, 0, 0
 
 options_pieces: list[str] = ["Q", "R", "B", "N"]
 
@@ -157,17 +167,20 @@ gamestate = GameState()
 
 # ------------------- DRAWING FUNCTIONS -------------------
 
-def draw_board(screen, highlighted: coordinate | None = None):
+def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
     for row in range(8):
         for col in range(8):
             color = colors[(row + col) % 2]
 
-            if highlighted == (row, col):
+            if (row, col) == highlighted:
                 
                 if color == light:
                     color = light_selected
                 else:
                     color = dark_selected
+            
+            if (row, col) == checked:
+                color = checked_col
 
             pygame.draw.rect(
                 screen,
@@ -431,7 +444,8 @@ while running:
         elif not gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
             gamestate.selected_square = piece_clicked(gamestate)
 
-    draw_board(screen, highlighted=gamestate.selected_square)
+    square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+    draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
     draw_legal_moves(screen, gamestate.legal_moves)
     draw_pieces(screen, gamestate.board)
 
