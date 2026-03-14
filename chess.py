@@ -1,45 +1,32 @@
 # Chess.py
 # Bowie Luckie
-
 # @TODO LIST
-
 # Core gameplay DONE!
 # [/] Implement move system (select piece → click destination)
 # [/] Validate moves using get_legal_moves()
 # [/] Switch turns after valid move
-
 # Piece logic [/]
-
 # special rules
 # [ ] En passant
 # [/] Promotion
 # [/] Castling
-
 # game rules
 # [/] Check detection
 # [/] Prevent moves that leave king in check
 # [/] display checks
 # [ ] Checkmate detection
 # [ ] Stalemate detection
-
 # UI improvements
 # [/] Highlight legal moves
 # [ ] Display check/checkmate message
 # [ ] flip board after each move
-
 # code improvements
 # [/] Separate code into modules?
-
 # [ ] AI opponent?
-
-
-
-
-# Made from scratch with NO chess libraries
+# made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
-
+# some ai written code
 # /----------- CODE -----------/
-
 import pygame
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
@@ -56,27 +43,27 @@ Color: TypeAlias = tuple[int, int, int]
 def standard_board() -> Board:
     board: list[list[None | Piece]] = [[None]*8 for _ in range(8)]
 
-    # black pieces
+# black pieces
     board[0] = [
-        Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
-        King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
-    ]
+    Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
+    King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
+]
     board[1] = [Pawn("b", "P") for _ in range(8)]
 
-    # white pieces
+# white pieces
     board[6] = [Pawn("w", "P") for _ in range(8)]
     board[7] = [
-        Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
-        King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
-    ]
+    Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
+    King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
+]
     return board
 
 def promotion_test_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
-    # white pawns ready to promote
+# white pawns ready to promote
     for col in range(8):
         board[6][col] = Pawn("w", "P")
-    # black pawns ready to promote
+# black pawns ready to promote
     for col in range(8):
         board[1][col] = Pawn("b", "P")
     board[7][4] = King("w", "K")
@@ -89,12 +76,12 @@ def empty_board() -> Board:
 def castling_test_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 
-    # white pieces
+# white pieces
     board[7][4] = King("w", "K")
     board[7][0] = Rook("w", "R")
     board[7][7] = Rook("w", "R")
 
-    # black pieces
+# black pieces
     board[0][4] = King("b", "K")
     board[0][0] = Rook("b", "R")
     board[0][7] = Rook("b", "R")
@@ -110,11 +97,11 @@ def check_test_board() -> Board:
     return board
 
 BOARDS = {
-    "standard": standard_board,
-    "promotion": promotion_test_board,
-    "empty": empty_board,
-    "castling": castling_test_board,
-    "check": check_test_board
+"standard": standard_board,
+"promotion": promotion_test_board,
+"empty": empty_board,
+"castling": castling_test_board,
+"check": check_test_board
 }
 
 def get_board_mode():
@@ -123,7 +110,7 @@ def get_board_mode():
             data = json.load(f)
             return data.get("board_mode", "standard") # returns standard as default
     except FileNotFoundError:
-        # Create the file with default board_mode if it doesn't exist
+    # Create the file with default board_mode if it doesn't exist
         with open("board_mode.json", "w") as f:
             json.dump({"board_mode": "standard"}, f)
         return "standard"
@@ -177,7 +164,7 @@ OPTIONS: list[str] = ["Q", "R", "B", "N"]
 IMAGES = {}
 
 pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
-               "bp", "br", "bn", "bb", "bq", "bk"]
+            "bp", "br", "bn", "bb", "bq", "bk"]
 
 for piece in pieces_list:
     p = pygame.image.load("pieces/" + piece + ".png")
@@ -203,10 +190,10 @@ def draw_board(screen, highlighted: coordinate | None = None, checked: coordinat
                     color = dark_selected
 
             pygame.draw.rect(
-                screen,
-                color,
-                (col * square_size, row * square_size, square_size, square_size)
-            )
+            screen,
+            color,
+            (col * square_size, row * square_size, square_size, square_size)
+        )
 
 def draw_pieces(screen, board):
     for row in range(8):
@@ -214,22 +201,22 @@ def draw_pieces(screen, board):
             piece = board[row][col]
             if piece is not None:
                 screen.blit(IMAGES[piece.image_key()],
-                            (col * square_size, row * square_size))
+                        (col * square_size, row * square_size))
 
 def draw_legal_moves(screen, moves: list[coordinate]):
-    # creates a temp surface with an alpha channel and blits that to the main screen surface
+# creates a temp surface with an alpha channel and blits that to the main screen surface
     for row, col in moves:
         circle_surface = pygame.Surface((square_size, square_size), pygame.SRCALPHA)
 
         pygame.draw.circle(
-            circle_surface,
-            (0, 0, 0, 100),  # RGBA → last value is transparency (0–255)
-            (square_size // 2, square_size // 2),
-            square_size // 6
-        )
+        circle_surface,
+        (0, 0, 0, 100),  # RGBA → last value is transparency (0–255)
+        (square_size // 2, square_size // 2),
+        square_size // 6
+    )
 
         screen.blit(circle_surface, (col * square_size, row * square_size))
-        
+    
 def draw_promotion(color):
     global OPTIONS
     menu = pygame.Surface((square_size, square_size * 4))
@@ -238,7 +225,7 @@ def draw_promotion(color):
         prom_menu_img = IMAGES[color.lower() + piece_name.lower()]
         menu.blit(prom_menu_img, (0, i * square_size))
     return menu
-    
+
 def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
     menu = draw_promotion(color=color_in)
     prow, pcol = promotion_square
@@ -268,16 +255,15 @@ def display_outcome(white_wins: bool, screen=screen):
     box = draw_outcome(white_wins=white_wins)
     screen.blit(box, (square_size, square_size*2))
 
-
 # ------------------- LOGIC -------------------
 
 def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False):
     """
-    Move a piece from `origin` to `destination` and update the game state.
-    """
+Move a piece from `origin` to `destination` and update the game state.
+"""
     orow, ocol = origin # origin-x and origin-y
     trow, tcol = destination
-    
+
     gamestate.board[trow][tcol] = gamestate.board[orow][ocol] # dupe the piece into the new position
     gamestate.board[orow][ocol] = None # remove old piece
 
@@ -285,18 +271,18 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
     if piece is not None and hasattr(piece, "has_moved") and not simulate: # checks if the peice has the "has_moved" attribute
         piece.has_moved = True
 
-    # promotion
+# promotion
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
         gamestate.promotion_active = True
         gamestate.promotion_square = (trow, tcol)
         gamestate.promotion_color = piece.color
-        
-        # calculate and store the four squares where the player can click
+    
+    # calculate and store the four squares where the player can click
         gamestate.promotion_options = []
         start_row = trow if piece.color == "w" else trow - 3 # 3 squares towards the top
         for i in range(4):
             gamestate.promotion_options.append((start_row + i, tcol))
-    
+
     if isinstance(piece, King) and abs(tcol - ocol) == 2: # checks if distance between origin and target is 2, hence a castle has happened
         if tcol == 6:
             rook = gamestate.board[trow][7]
@@ -318,7 +304,7 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
         else:
             gamestate.black_king_pos = (trow, tcol)
 
-    # flip turn after moving (even during a promotion selection state we consider the move done)
+# flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate:
         gamestate.white_turn = not gamestate.white_turn
 
@@ -333,15 +319,14 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
             if piece.color != looking_color:
                 continue
 
-            # pawn attacks
+        # pawn attacks
             if isinstance(piece, Pawn):
-
                 direction = 1 if piece.color == "b" else -1
 
                 attack_squares = [
-                    (r + direction, c + 1),
-                    (r + direction, c - 1)
-                ]
+                (r + direction, c + 1),
+                (r + direction, c - 1)
+            ]
 
                 for ar, ac in attack_squares:
                     if 0 <= ar < 8 and 0 <= ac < 8:
@@ -356,16 +341,16 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
     return False
 
 def king_in_check(gamestate: GameState, color):
-    # build args
+# build args
     king_pos = gamestate.white_king_pos if color == "w" else gamestate.black_king_pos
     enemy = "b" if color == "w" else "w"
     return square_is_attacked(king_pos, enemy, gamestate) # pass the args
 
 def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) -> bool:
     """
-    returns if a move is allowed (does not result in check)
-    """
-    # Save original state
+returns if a move is allowed (does not result in check)
+"""
+# Save original state
     orow, ocol = origin
     trow, tcol = target
 
@@ -380,17 +365,17 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
     promotion_color = gamestate.promotion_color
     promotion_options = gamestate.promotion_options.copy()
 
-    # Save has_moved flags
+# Save has_moved flags
     orig_has_moved = orig_piece.has_moved if orig_piece and hasattr(orig_piece, "has_moved") else None
     target_has_moved = target_piece.has_moved if target_piece and hasattr(target_piece, "has_moved") else None
 
-    # For castling, save rook origin/destination so it can be restored after simulation
+# For castling, save rook origin/destination so it can be restored after simulation
     rook_origin = None
     rook_dest = None
     rook_piece = None
     rook_dest_piece = None
     rook_has_moved = None
-    
+
     if (isinstance(orig_piece, King) and abs(tcol - ocol) == 2): # if the king ever moves two squares, its a castle
         if tcol == 6:  # kingside
             rook_origin = (trow, 7)
@@ -405,12 +390,12 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
             rook_has_moved = rook_piece.has_moved
 
 
-        
-        # 1) King cannot castle out of check
+    
+    # 1) King cannot castle out of check
         if king_in_check(gamestate, orig_piece.color):
             return False
 
-        # 2) King cannot castle through check (intermediate square)
+    # 2) King cannot castle through check (intermediate square)
         enemy = "b" if orig_piece.color == "w" else "w"
         step = 1 if tcol > ocol else -1
         intermediate = (orow, ocol + step) # the square directly next to the king in the direction of the castle
@@ -419,7 +404,7 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
         gamestate.board[orow][ocol] = None
         gamestate.board[intermediate[0]][intermediate[1]] = orig_piece
 
-        # temporarily update king position so square_is_attacked sees the king move
+    # temporarily update king position so square_is_attacked sees the king move
         if orig_piece.color == "w":
             gamestate.white_king_pos = intermediate
         else:
@@ -427,7 +412,7 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
 
         through_check = square_is_attacked(intermediate, enemy, gamestate)
 
-        # restore
+    # restore
         gamestate.board[orow][ocol] = orig_piece
         gamestate.board[intermediate[0]][intermediate[1]] = saved_intermediate
         gamestate.white_king_pos = white_king_pos
@@ -435,18 +420,18 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
 
         if through_check:
             return False
-        
-
     
+
+
     move_piece(gamestate, origin, target, simulate=True)
 
-    # Check if king is in check
+# Check if king is in check
     if orig_piece is not None:
         in_check = king_in_check(gamestate, orig_piece.color)
     else:
         in_check = False
 
-    # return to original state
+# return to original state
     gamestate.board[orow][ocol] = orig_piece
     gamestate.board[trow][tcol] = target_piece
 
@@ -458,13 +443,13 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
     gamestate.promotion_color = promotion_color
     gamestate.promotion_options = promotion_options
 
-    # Restore has_moved flags
+# Restore has_moved flags
     if orig_piece and hasattr(orig_piece, "has_moved") and orig_has_moved is not None:
         orig_piece.has_moved = orig_has_moved
     if target_piece and hasattr(target_piece, "has_moved") and target_has_moved is not None:
         target_piece.has_moved = target_has_moved
 
-    # Restore castling rook position
+# Restore castling rook position
     if rook_origin is not None and rook_dest is not None:
         gamestate.board[rook_origin[0]][rook_origin[1]] = rook_piece
         gamestate.board[rook_dest[0]][rook_dest[1]] = rook_dest_piece
@@ -482,7 +467,7 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
     col = mouse_x // square_size
 
     piece = gamestate.board[row][col]
-    # If a piece is already selected, try to move it
+# If a piece is already selected, try to move it
     if gamestate.selected_square:
         if (row, col) in gamestate.legal_moves:
             move_piece(gamestate, gamestate.selected_square, (row, col))
@@ -490,14 +475,14 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
             gamestate.legal_moves = []
             return None
 
-    # Select a piece
+# Select a piece
     if piece is not None:
         if (gamestate.white_turn and piece.color == "w") or (not gamestate.white_turn and piece.color == "b"):
             pseudo_moves = piece.get_legal_moves(gamestate.board, row, col)
             gamestate.legal_moves = [move for move in pseudo_moves if simulate_move(gamestate, (row, col), move)]
             return (row, col)
 
-    # otherwise clear selection
+# otherwise clear selection
     gamestate.legal_moves = []
     return None
 
@@ -510,18 +495,18 @@ def handle_promotion(gamestate: GameState):
 
         chosen_index = row - gamestate.promotion_options[0][0]
         gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]] = options_classes[chosen_index](
-            gamestate.promotion_color,
-            options_letters[chosen_index]
-        )
+        gamestate.promotion_color,
+        options_letters[chosen_index]
+    )
 
-        # reset all the promotion related values
+    # reset all the promotion related values
         gamestate.promotion_active = False
         gamestate.promotion_square = None
         gamestate.promotion_color = None
         gamestate.promotion_options = []
-        
+    
 
-            
+        
 # ------------------- MAIN LOOP -------------------
 
 while running:
@@ -542,7 +527,8 @@ while running:
         piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
         if piece is not None:
             display_prom_menu(piece.color, gamestate.promotion_square)
-    # display_outcome(white_wins=True)
+# display_outcome(white_wins=True)
     pygame.display.flip()
 
 pygame.quit()
+
