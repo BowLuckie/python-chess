@@ -10,4 +10,5 @@ dist/
 *.spec
 venv/
 .env/
+.venv/
 **/desktop.ini
