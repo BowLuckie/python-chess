@@ -1,31 +1,42 @@
 # Chess.py
 # Bowie Luckie
 # @TODO LIST
+
 # Core gameplay DONE!
 # [/] Implement move system (select piece → click destination)
 # [/] Validate moves using get_legal_moves()
 # [/] Switch turns after valid move
-# Piece logic [/]
+# [/] Piece logic 
+
 # special rules
 # [ ] En passant
 # [/] Promotion
 # [/] Castling
+
 # game rules
 # [/] Check detection
 # [/] Prevent moves that leave king in check
 # [/] display checks
-# [ ] Checkmate detection
+# [ ] Checkmate detection DOING
 # [ ] Stalemate detection
+
 # UI improvements
 # [/] Highlight legal moves
 # [ ] Display check/checkmate message
 # [ ] flip board after each move
+
 # code improvements
 # [/] Separate code into modules?
+# 
+#
 # [ ] AI opponent?
+
+# DOING: write checkmate and stalemate detection. add draw outcome
+
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
 # some ai written code
+
 # /----------- CODE -----------/
 import pygame
 from typing import TypeAlias
@@ -134,28 +145,32 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.white_king_pos: coordinate = (7, 4)
         self.black_king_pos: coordinate = (0, 4)
 
+        self.game_over = False
+
+        
+
 pygame.init()
 pygame.font.init()
 gamestate = GameState()
 
-size = 800
-WIDTH, HEIGHT = size, size
-square_size = size // 8 # each square length is 80 pixels
+SCREEN_SIZE = 800
+WIDTH, HEIGHT = SCREEN_SIZE, SCREEN_SIZE
+SQUARE_SIZE = SCREEN_SIZE // 8 # each square length is 80 pixels
 
-icon = pygame.image.load("pieces/bp.png")
+ICON = pygame.image.load("pieces/bp.png")
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
-pygame.display.set_icon(icon)
+pygame.display.set_icon(ICON)
 
 running = True
 
-light: Color = 230, 210, 170
-dark: Color = 184, 135, 98
-colors: list[Color] = [light, dark] 
-light_selected: Color = 255, 250, 125
-dark_selected: Color = 235, 205, 90
-checked_light: Color = 235, 121, 99
-checked_dark: Color = 225, 105, 84
+LIGHT: Color = 230, 210, 170
+DARK: Color = 184, 135, 98
+COLOURS: list[Color] = [LIGHT, DARK] 
+LIGHT_SELECTED: Color = 255, 250, 125
+DARK_SELECTED: Color = 235, 205, 90
+CHECKED_LIGHT: Color = 235, 121, 99
+CHECKED_DARK: Color = 225, 105, 84
 
 OPTIONS: list[str] = ["Q", "R", "B", "N"]
 
@@ -168,31 +183,34 @@ pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
 
 for piece in pieces_list:
     p = pygame.image.load("pieces/" + piece + ".png")
-    IMAGES[piece] = pygame.transform.scale(p, (square_size, square_size))
+    IMAGES[piece] = pygame.transform.scale(p, (SQUARE_SIZE, SQUARE_SIZE))
+
+c = pygame.image.load("pieces/crown.png")
+CROWN = pygame.transform.scale(c, (SQUARE_SIZE, SQUARE_SIZE))
 
 # ------------------- DRAWING FUNCTIONS -------------------
 
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
     for row in range(8):
         for col in range(8):
-            color = colors[(row + col) % 2]
+            color = COLOURS[(row + col) % 2]
 
             if (row, col) == checked:
-                if color == light:
-                    color = checked_light
+                if color == LIGHT:
+                    color = CHECKED_LIGHT
                 else:
-                    color = checked_dark
+                    color = CHECKED_DARK
 
             if (row, col) == highlighted: # highlighted squares take priority over checked squares
-                if color == light or color == checked_light:
-                    color = light_selected
+                if color == LIGHT or color == CHECKED_LIGHT:
+                    color = LIGHT_SELECTED
                 else:
-                    color = dark_selected
+                    color = DARK_SELECTED
 
             pygame.draw.rect(
             screen,
             color,
-            (col * square_size, row * square_size, square_size, square_size)
+            (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
         )
 
 def draw_pieces(screen, board):
@@ -201,66 +219,120 @@ def draw_pieces(screen, board):
             piece = board[row][col]
             if piece is not None:
                 screen.blit(IMAGES[piece.image_key()],
-                        (col * square_size, row * square_size))
+                        (col * SQUARE_SIZE, row * SQUARE_SIZE))
 
 def draw_legal_moves(screen, moves: list[coordinate]):
 # creates a temp surface with an alpha channel and blits that to the main screen surface
     for row, col in moves:
-        circle_surface = pygame.Surface((square_size, square_size), pygame.SRCALPHA)
+        circle_surface = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
 
         pygame.draw.circle(
         circle_surface,
         (0, 0, 0, 100),  # RGBA → last value is transparency (0–255)
-        (square_size // 2, square_size // 2),
-        square_size // 6
+        (SQUARE_SIZE // 2, SQUARE_SIZE // 2),
+        SQUARE_SIZE // 6
     )
 
-        screen.blit(circle_surface, (col * square_size, row * square_size))
+        screen.blit(circle_surface, (col * SQUARE_SIZE, row * SQUARE_SIZE))
     
 def draw_promotion(color):
     global OPTIONS
-    menu = pygame.Surface((square_size, square_size * 4))
+    menu = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE * 4))
     menu.fill((255,255,255)) 
     for i, piece_name in enumerate(OPTIONS):
         prom_menu_img = IMAGES[color.lower() + piece_name.lower()]
-        menu.blit(prom_menu_img, (0, i * square_size))
+        menu.blit(prom_menu_img, (0, i * SQUARE_SIZE))
     return menu
 
 def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
     menu = draw_promotion(color=color_in)
     prow, pcol = promotion_square
-    x = pcol * square_size
-    y = prow * square_size
+    x = pcol * SQUARE_SIZE
+    y = prow * SQUARE_SIZE
     if prow == 0:
         screen.blit(menu, (x, y))
     else:
-        y = (prow - 3) * square_size
+        y = (prow - 3) * SQUARE_SIZE
         screen.blit(menu, (x, y))
 
 def draw_outcome(white_wins):
-    BOX_HEIGHT = 4 * square_size
-    BOX_WIDTH = 6 * square_size
+    # AI written (im a programmer, not a graphics designer)
+    global button
 
-    box = pygame.Surface((BOX_WIDTH, BOX_HEIGHT))
-    box.fill((255,255,255))
+    BOX_HEIGHT = 4 * SQUARE_SIZE
+    BOX_WIDTH = 6 * SQUARE_SIZE
+    BORDER = 8
 
-    winner = "white" if white_wins else "black"
-    winner_col: Color = (255,255,100) if white_wins else (0,0,0)
+    box = pygame.Surface((BOX_WIDTH, BOX_HEIGHT), pygame.SRCALPHA)
 
-    vicotry_text = pygame.font.SysFont('Arial', 36).render(f"{winner} won!", False, winner_col)
-    box.blit(vicotry_text, (BOX_WIDTH // 2, BOX_HEIGHT // 2))
+    pygame.draw.rect(box, (30,30,30), (0,0,BOX_WIDTH,BOX_HEIGHT), border_radius=12)
+    pygame.draw.rect(
+        box,
+        (240,240,240),
+        (BORDER,BORDER,BOX_WIDTH-BORDER*2,BOX_HEIGHT-BORDER*2),
+        border_radius=10
+    )
+
+    winner = "White" if white_wins else "Black"
+
+    font_big = pygame.font.SysFont("Arial", 40, bold=True)
+    font_btn = pygame.font.SysFont("Arial", 24)
+
+    victory_text = font_big.render(f"{winner} wins!", True, (0,0,0))
+    text_rect = victory_text.get_rect(center=(BOX_WIDTH//2, (BOX_HEIGHT//4)-(SQUARE_SIZE * 0.5)))
+    box.blit(victory_text, text_rect)
+
+    # Pawn image (scaled smaller)
+    winning_side = "wp" if white_wins else "bp"
+    pawn = IMAGES[winning_side]
+    pawn_size = int(SQUARE_SIZE * 0.9)
+    pawn = pygame.transform.smoothscale(pawn, (pawn_size, pawn_size))
+
+    pawn_rect = pawn.get_rect(center=(BOX_WIDTH//2, BOX_HEIGHT//2))
+    box.blit(pawn, pawn_rect)
+
+    # Crown (scaled)
+    crown_size = int(SQUARE_SIZE * 0.7)
+    crown = pygame.transform.smoothscale(CROWN, (crown_size, crown_size))
+
+    # Position crown on pawn head
+    crown_rect = crown.get_rect(
+        midbottom=(pawn_rect.centerx, pawn_rect.top + 8)
+    )
+    box.blit(crown, crown_rect)
+
+    # Restart button
+    BTN_W, BTN_H = 140, 80
+    btn_x = BOX_WIDTH//2 - BTN_W//2
+    btn_y = BOX_HEIGHT - BTN_H - 15
+
+    button = pygame.Rect(btn_x, btn_y, BTN_W, BTN_H)
+
+    pygame.draw.rect(box, (60,140,220), button, border_radius=8)
+    pygame.draw.rect(box, (20,60,120), button, 2, border_radius=8)
+
+    btn_text = font_btn.render("Restart", True, (255,255,255))
+    btn_rect = btn_text.get_rect(center=button.center)
+    box.blit(btn_text, btn_rect)
+
     return box
 
+
 def display_outcome(white_wins: bool, screen=screen):
-    box = draw_outcome(white_wins=white_wins)
-    screen.blit(box, (square_size, square_size*2))
+    box = draw_outcome(white_wins)
+
+    x = WIDTH // 2 - box.get_width() // 2
+    y = HEIGHT // 2 - box.get_height() // 2
+
+    screen.blit(box, (x, y))
+    return pygame.Rect(x + button.x, y + button.y, button.width, button.height)
 
 # ------------------- LOGIC -------------------
 
 def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False):
     """
-Move a piece from `origin` to `destination` and update the game state.
-"""
+    Move a piece from `origin` to `destination` and update the game state.
+    """
     orow, ocol = origin # origin-x and origin-y
     trow, tcol = destination
 
@@ -271,13 +343,13 @@ Move a piece from `origin` to `destination` and update the game state.
     if piece is not None and hasattr(piece, "has_moved") and not simulate: # checks if the peice has the "has_moved" attribute
         piece.has_moved = True
 
-# promotion
+    # promotion
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
         gamestate.promotion_active = True
         gamestate.promotion_square = (trow, tcol)
         gamestate.promotion_color = piece.color
     
-    # calculate and store the four squares where the player can click
+        # calculate and store the four squares where the player can click
         gamestate.promotion_options = []
         start_row = trow if piece.color == "w" else trow - 3 # 3 squares towards the top
         for i in range(4):
@@ -304,7 +376,9 @@ Move a piece from `origin` to `destination` and update the game state.
         else:
             gamestate.black_king_pos = (trow, tcol)
 
-# flip turn after moving (even during a promotion selection state we consider the move done)
+    
+
+    # flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate:
         gamestate.white_turn = not gamestate.white_turn
 
@@ -319,7 +393,7 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
             if piece.color != looking_color:
                 continue
 
-        # pawn attacks
+            # pawn attacks
             if isinstance(piece, Pawn):
                 direction = 1 if piece.color == "b" else -1
 
@@ -341,7 +415,7 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
     return False
 
 def king_in_check(gamestate: GameState, color):
-# build args
+    # build args
     king_pos = gamestate.white_king_pos if color == "w" else gamestate.black_king_pos
     enemy = "b" if color == "w" else "w"
     return square_is_attacked(king_pos, enemy, gamestate) # pass the args
@@ -350,7 +424,7 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
     """
 returns if a move is allowed (does not result in check)
 """
-# Save original state
+    # Save original state
     orow, ocol = origin
     trow, tcol = target
 
@@ -463,10 +537,31 @@ returns if a move is allowed (does not result in check)
 
 def piece_clicked(gamestate: GameState) -> coordinate | None:
     mouse_x, mouse_y = pygame.mouse.get_pos()
-    row = mouse_y // square_size
-    col = mouse_x // square_size
+    row = mouse_y // SQUARE_SIZE
+    col = mouse_x // SQUARE_SIZE
+    print(row,col)
 
     piece = gamestate.board[row][col]
+
+    if ((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True:
+        gamestate.board = BOARDS.get(board_mode, standard_board)()
+        
+        gamestate.selected_square = None
+        gamestate.legal_moves = []
+
+        gamestate.promotion_active = False
+        gamestate.promotion_square = None
+        gamestate.promotion_color = None
+        gamestate.promotion_options = []
+
+        gamestate.white_king_pos = (7, 4)
+        gamestate.black_king_pos = (0, 4)
+        
+        gamestate.white_turn = True
+        gamestate.game_over = False
+
+        return None
+
 # If a piece is already selected, try to move it
     if gamestate.selected_square:
         if (row, col) in gamestate.legal_moves:
@@ -488,7 +583,7 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
 
 def handle_promotion(gamestate: GameState):
     mouse_x, mouse_y = pygame.mouse.get_pos()
-    row, col = mouse_y // square_size, mouse_x // square_size
+    row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
     if (row, col) in gamestate.promotion_options and gamestate.promotion_square is not None:
         options_classes = [Queen, Rook, Bishop, Knight]
         options_letters = ["Q", "R", "B", "N"]  # must match the image keys
@@ -504,11 +599,9 @@ def handle_promotion(gamestate: GameState):
         gamestate.promotion_square = None
         gamestate.promotion_color = None
         gamestate.promotion_options = []
-    
-
         
 # ------------------- MAIN LOOP -------------------
-
+# gamestate.game_over = True # REMOVE
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -520,14 +613,17 @@ while running:
 
     square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
     draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
-    draw_legal_moves(screen, gamestate.legal_moves)
     draw_pieces(screen, gamestate.board)
+    draw_legal_moves(screen, gamestate.legal_moves)
 
     if gamestate.promotion_active and gamestate.promotion_square:
         piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
         if piece is not None:
             display_prom_menu(piece.color, gamestate.promotion_square)
-# display_outcome(white_wins=True)
+
+    if gamestate.game_over:
+        display_outcome(white_wins=True)
+    
     pygame.display.flip()
 
 pygame.quit()
