@@ -39,6 +39,7 @@
 import pygame
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
+import json
 
 # /----------- DATA/SETUP -----------/
 
@@ -112,11 +113,22 @@ BOARDS = {
     "check": check_test_board
 }
 
-board_mode = "check" # change to match keys in BOARDS dictionary
+def get_board_mode():
+    try:
+        with open("board_mode.json", "r") as f:
+            data = json.load(f)
+            return data.get("board_mode", "standard")
+    except FileNotFoundError:
+        # Create the file with default board_mode if it doesn't exist
+        with open("board_mode.json", "w") as f:
+            json.dump({"board_mode": "standard"}, f)
+        return "standard"
+
+board_mode = get_board_mode()  # change to match keys in BOARDS dictionary
 
 class GameState:  # this class contains all the mutable variables that migtht need to be accsed throughout the code
     def __init__(self):
-        self.board: Board = BOARDS[board_mode]()
+        self.board: Board = BOARDS.get(board_mode, standard_board)() # .get allows us to specify a default value as apposeded to indexing which raises an error
 
         self.white_turn = True
 
@@ -132,6 +144,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.black_king_pos: coordinate = (0, 4)
 
 pygame.init()
+gamestate = GameState()
 
 size = 800
 WIDTH, HEIGHT = size, size
@@ -164,8 +177,6 @@ pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
 for piece in pieces_list:
     p = pygame.image.load("pieces/" + piece + ".png")
     IMAGES[piece] = pygame.transform.scale(p, (square_size, square_size))
-
-gamestate = GameState()
 
 # ------------------- DRAWING FUNCTIONS -------------------
 

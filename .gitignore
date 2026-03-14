@@ -12,3 +12,4 @@ venv/
 .env/
 .venv/
 **/desktop.ini
+board_mode.json
