@@ -114,27 +114,28 @@ class King(Piece):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         # max_distance=1 ensures only single-square moves
         moves: list[coordinate] = []
-        if not self.has_moved and not board[row][0].has_moved:
-            # check left side
-            rook_spot = board[row][0]
-            if (
-                board[row][1] is None 
-                and board[row][2] is None 
-                and board[row][3] is None 
-                and isinstance(rook_spot, Rook)
-                and not rook_spot.has_moved
-            ):
-                moves.append((row, 2))
+        if hasattr(board[row][0], "has_moved"):
+            if not self.has_moved and not board[row][0].has_moved:
+                # check left side
+                rook_spot = board[row][0]
+                if (
+                    board[row][1] is None 
+                    and board[row][2] is None 
+                    and board[row][3] is None 
+                    and isinstance(rook_spot, Rook)
+                    and not rook_spot.has_moved
+                ):
+                    moves.append((row, 2))
 
-            # check right side
-            rook_spot = board[row][7]
-            if (
-                board[row][6] is None 
-                and board[row][5] is None 
-                and isinstance(rook_spot, Rook) # ensure end square is rook...
-                and not rook_spot.has_moved # ...and has not moved
-            ):
-                moves.append((row, 6))
+                # check right side
+                rook_spot = board[row][7]
+                if (
+                    board[row][6] is None 
+                    and board[row][5] is None 
+                    and isinstance(rook_spot, Rook) # ensure end square is rook...
+                    and not rook_spot.has_moved # ...and has not moved
+                ):
+                    moves.append((row, 6))
 
         moves += move_helper(board, row, col, directions, self.color, max_distance=1) # concatenate move calculated from castling to moves made from move helper
         return moves
