@@ -19,7 +19,7 @@
 # game rules
 # [/] Check detection
 # [/] Prevent moves that leave king in check
-# [ ] display checks
+# [/] display checks
 # [ ] Checkmate detection
 # [ ] Stalemate detection
 #
@@ -101,6 +101,7 @@ def check_test_board() -> Board:
     board[7][4] = King("w", "K")
     board[0][4] = King("b", "K")
     board[1][3] = Queen("b", "Q")
+    board[6][5] = Queen("w", "Q")
     return board
 
 BOARDS = {
@@ -148,7 +149,8 @@ dark: Color = 184, 135, 98
 colors: list[Color] = [light, dark] 
 light_selected: Color = 247, 235, 114
 dark_selected: Color = 220, 196, 75
-checked_col: Color = 255, 0, 0
+checked_light: Color = 235, 121, 99
+checked_dark: Color = 225, 105, 84
 
 options_pieces: list[str] = ["Q", "R", "B", "N"]
 
@@ -172,15 +174,17 @@ def draw_board(screen, highlighted: coordinate | None = None, checked: coordinat
         for col in range(8):
             color = colors[(row + col) % 2]
 
-            if (row, col) == highlighted:
-                
+            if (row, col) == checked:
+                if color == light:
+                    color = checked_light
+                else:
+                    color = checked_dark
+
+            if (row, col) == highlighted: # highlighted squares take priority over checked squares
                 if color == light:
                     color = light_selected
                 else:
                     color = dark_selected
-            
-            if (row, col) == checked:
-                color = checked_col
 
             pygame.draw.rect(
                 screen,
