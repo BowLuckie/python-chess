@@ -39,10 +39,18 @@
 # some ai written code
 
 # /----------- CODE -----------/
+
 import pygame
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 import json
+import sys
+import os
+
+def resource_path(relative_path: str) -> str:
+    # _MEIPASS exists only when bundled by PyInstaller
+    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
 
 # ----------- DATA/SETUP -----------
 
@@ -143,7 +151,8 @@ def stalemate_test_board() -> Board:
 
     return board
 
-# if you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. then change the board mode in the .json
+print("if you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. " \
+"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe")
 BOARDS = {
 "standard": standard_board,
 "promotion": promotion_test_board,
@@ -154,20 +163,18 @@ BOARDS = {
 }
 
 def get_board_mode():
+    path = resource_path("board_mode.json")
     try:
-        with open("board_mode.json", "r") as f:
+        with open(path, "r") as f:
             data = json.load(f)
-            return data.get("board_mode", "standard") # returns standard as default
+            return data.get("board_mode", "standard")
     except FileNotFoundError:
-    # Create the file with default board_mode if it doesn't exist
-        with open("board_mode.json", "w") as f:
-            
-            json.dump(
-            {
-            "board_mode": "standard",
-            "available_modes": ["standard", "promotion", "empty", "castling", "check", "checkmate", "stalemate"] 
+        # create file with default modes if missing
+        with open(path, "w") as f:
+            json.dump({
+                "board_mode": "standard",
+                "available_modes": ["standard", "promotion", "empty", "castling", "check", "checkmate", "stalemate"]
             }, f)
-
         return "standard"
 
 board_mode = get_board_mode() # change to match keys in BOARDS dictionary
@@ -206,7 +213,7 @@ SCREEN_SIZE = 1000
 WIDTH, HEIGHT = SCREEN_SIZE, SCREEN_SIZE
 SQUARE_SIZE = SCREEN_SIZE // 8 # each square length is 80 pixels
 
-ICON = pygame.image.load("pieces/bp.png")
+ICON = pygame.image.load(resource_path("pieces/bp.png"))
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
@@ -231,13 +238,13 @@ pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk"]
 
 for piece in pieces_list:
-    p = pygame.image.load("pieces/" + piece + ".png")
+    p = pygame.image.load(resource_path("pieces/" + piece + ".png"))
     IMAGES[piece] = pygame.transform.scale(p, (SQUARE_SIZE, SQUARE_SIZE))
 
-c = pygame.image.load("pieces/crown.png")
+c = pygame.image.load(resource_path("pieces/crown.png"))
 CROWN = pygame.transform.scale(c, (SQUARE_SIZE, SQUARE_SIZE))
 
-d = pygame.image.load("pieces/draw.png")
+d = pygame.image.load(resource_path("pieces/draw.png"))
 DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
 
 # ------------------- DRAWING FUNCTIONS -------------------
