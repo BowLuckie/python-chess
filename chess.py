@@ -40,12 +40,15 @@
 
 # /----------- CODE -----------/
 
+from types import FunctionType
+
 import pygame
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 import json
 import sys
 import os
+import warnings
 
 def resource_path(relative_path: str) -> str:
     # _MEIPASS exists only when bundled by PyInstaller
@@ -67,7 +70,7 @@ class KingPosError(Exception):
 
 # ------------------- BOARD SETUP -------------------
 def standard_board() -> Board:
-    board: list[list[None | Piece]] = [[None]*8 for _ in range(8)]
+    board: Board = [[None]*8 for _ in range(8)]
 
 # black pieces
     board[0] = [
@@ -151,9 +154,10 @@ def stalemate_test_board() -> Board:
 
     return board
 
-print("if you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. " \
-"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe")
-BOARDS = {
+print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. " 
+"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
+print("if you are running the exe, and can this terminal, you are running a pre-release.")
+BOARDS: dict[str, FunctionType] = {
 "standard": standard_board,
 "promotion": promotion_test_board,
 "castling": castling_test_board,
@@ -162,7 +166,7 @@ BOARDS = {
 "stalemate": stalemate_test_board,
 }
 
-def get_board_mode():
+def get_board_mode() -> str:
     path = resource_path("board_mode.json")
     try:
         with open(path, "r") as f:
@@ -214,7 +218,7 @@ WIDTH, HEIGHT = SCREEN_SIZE, SCREEN_SIZE
 SQUARE_SIZE = SCREEN_SIZE // 8 # each square length is 80 pixels
 
 ICON = pygame.image.load(resource_path("pieces/bp.png"))
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
