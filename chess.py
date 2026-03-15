@@ -12,17 +12,18 @@
 # [ ] En passant
 # [/] Promotion
 # [/] Castling
-
+# [ ] other draws
+#
 # game rules
 # [/] Check detection
 # [/] Prevent moves that leave king in check
 # [/] display checks
-# [ ] Checkmate detection DOING
-# [ ] Stalemate detection
+# [/] Checkmate detection
+# [/] Stalemate detection
 
 # UI improvements
 # [/] Highlight legal moves
-# [ ] Display check/checkmate message
+# [/] Display check/checkmate message
 # [ ] flip board after each move
 
 # code improvements
@@ -31,7 +32,7 @@
 #
 # [ ] AI opponent?
 
-# DOING: write checkmate and stalemate detection. add draw outcome
+# DOING: 
 
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
@@ -49,6 +50,12 @@ import json
 coordinate: TypeAlias = tuple[int, int]
 Board: TypeAlias = list[list[None | Piece]]
 Color: TypeAlias = tuple[int, int, int]
+
+class KingPosError(Exception):
+    """
+    atleast 1 king has been placed in the wrong spot. Kings must be placed in (0,4) and (7,4) for black and white respectively
+    """
+    pass
 
 # ------------------- BOARD SETUP -------------------
 def standard_board() -> Board:
@@ -107,12 +114,43 @@ def check_test_board() -> Board:
     board[6][5] = Pawn("w", "p")
     return board
 
+def checkmate_test_board() -> Board:
+    board: list[list[None | Piece]] = [[None]*8 for _ in range(8)]
+
+    # Black king trapped on back rank
+    board[0][4] = King("b", "K")      # e8
+    board[1][3] = Pawn("b", "P")      # d7
+    board[1][4] = Pawn("b", "P")      # e7
+    board[1][5] = Pawn("b", "R")      # f7
+
+    # White pieces delivering mate
+    board[7][4] = King("w", "K")      # e1 (safe king)
+    board[7][7] = Rook("w", "R")      # h1
+
+    return board
+
+def stalemate_test_board() -> Board:
+    board: list[list[None | Piece]] = [[None]*8 for _ in range(8)]
+
+    # Black king
+    board[0][7] = King("b", "K")   # h8
+
+    # White pieces
+    board[1][5] = Queen("w", "Q")  # f7
+    board[2][6] = King("w", "K")   # g6
+
+    
+
+    return board
+
+# if you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. then change the board mode in the .json
 BOARDS = {
 "standard": standard_board,
 "promotion": promotion_test_board,
-"empty": empty_board,
 "castling": castling_test_board,
-"check": check_test_board
+"check": check_test_board,
+"checkmate": checkmate_test_board,
+"stalemate": stalemate_test_board,
 }
 
 def get_board_mode():
@@ -123,10 +161,16 @@ def get_board_mode():
     except FileNotFoundError:
     # Create the file with default board_mode if it doesn't exist
         with open("board_mode.json", "w") as f:
-            json.dump({"board_mode": "standard"}, f)
+            
+            json.dump(
+            {
+            "board_mode": "standard",
+            "available_modes": ["standard", "promotion", "empty", "castling", "check", "checkmate", "stalemate"] 
+            }, f)
+
         return "standard"
 
-board_mode = get_board_mode()  # change to match keys in BOARDS dictionary
+board_mode = get_board_mode() # change to match keys in BOARDS dictionary
 
 class GameState:  # this class contains all the mutable variables that migtht need to be accsed throughout the code
     def __init__(self):
@@ -145,7 +189,12 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.white_king_pos: coordinate = (7, 4)
         self.black_king_pos: coordinate = (0, 4)
 
-        self.game_over = False
+        if board_mode == "stalemate":
+            self.black_king_pos = (0,7)
+            self.white_king_pos = (2,6)
+
+        self.game_over: bool = False
+        self.winner: str | None = None
 
         
 
@@ -153,7 +202,7 @@ pygame.init()
 pygame.font.init()
 gamestate = GameState()
 
-SCREEN_SIZE = 800
+SCREEN_SIZE = 1000
 WIDTH, HEIGHT = SCREEN_SIZE, SCREEN_SIZE
 SQUARE_SIZE = SCREEN_SIZE // 8 # each square length is 80 pixels
 
@@ -188,28 +237,31 @@ for piece in pieces_list:
 c = pygame.image.load("pieces/crown.png")
 CROWN = pygame.transform.scale(c, (SQUARE_SIZE, SQUARE_SIZE))
 
+d = pygame.image.load("pieces/draw.png")
+DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
+
 # ------------------- DRAWING FUNCTIONS -------------------
 
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
     for row in range(8):
         for col in range(8):
-            color = COLOURS[(row + col) % 2]
+            colour = COLOURS[(row + col) % 2]
 
             if (row, col) == checked:
-                if color == LIGHT:
-                    color = CHECKED_LIGHT
+                if colour == LIGHT:
+                    colour = CHECKED_LIGHT
                 else:
-                    color = CHECKED_DARK
+                    colour = CHECKED_DARK
 
             if (row, col) == highlighted: # highlighted squares take priority over checked squares
-                if color == LIGHT or color == CHECKED_LIGHT:
-                    color = LIGHT_SELECTED
+                if colour == LIGHT or colour == CHECKED_LIGHT:
+                    colour = LIGHT_SELECTED
                 else:
-                    color = DARK_SELECTED
+                    colour = DARK_SELECTED
 
             pygame.draw.rect(
             screen,
-            color,
+            colour,
             (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
         )
 
@@ -235,17 +287,17 @@ def draw_legal_moves(screen, moves: list[coordinate]):
 
         screen.blit(circle_surface, (col * SQUARE_SIZE, row * SQUARE_SIZE))
     
-def draw_promotion(color):
+def draw_promotion(colour):
     global OPTIONS
     menu = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE * 4))
     menu.fill((255,255,255)) 
     for i, piece_name in enumerate(OPTIONS):
-        prom_menu_img = IMAGES[color.lower() + piece_name.lower()]
+        prom_menu_img = IMAGES[colour.lower() + piece_name.lower()]
         menu.blit(prom_menu_img, (0, i * SQUARE_SIZE))
     return menu
 
 def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
-    menu = draw_promotion(color=color_in)
+    menu = draw_promotion(colour=color_in)
     prow, pcol = promotion_square
     x = pcol * SQUARE_SIZE
     y = prow * SQUARE_SIZE
@@ -255,13 +307,15 @@ def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
         y = (prow - 3) * SQUARE_SIZE
         screen.blit(menu, (x, y))
 
-def draw_outcome(white_wins):
-    # AI written (im a programmer, not a graphics designer)
+def draw_outcome(winner: str):
     global button
 
     BOX_HEIGHT = 4 * SQUARE_SIZE
     BOX_WIDTH = 6 * SQUARE_SIZE
     BORDER = 8
+
+    draw = winner == "d"
+    white_wins = winner == "w"
 
     box = pygame.Surface((BOX_WIDTH, BOX_HEIGHT), pygame.SRCALPHA)
 
@@ -273,35 +327,42 @@ def draw_outcome(white_wins):
         border_radius=10
     )
 
-    winner = "White" if white_wins else "Black"
-
     font_big = pygame.font.SysFont("Arial", 40, bold=True)
     font_btn = pygame.font.SysFont("Arial", 24)
 
-    victory_text = font_big.render(f"{winner} wins!", True, (0,0,0))
-    text_rect = victory_text.get_rect(center=(BOX_WIDTH//2, (BOX_HEIGHT//4)-(SQUARE_SIZE * 0.5)))
+    # --- TEXT ---
+    if draw:
+        text = "Draw by stalemate!"
+    else:
+        text = "White wins!" if white_wins else "Black wins!"
+
+    victory_text = font_big.render(text, True, (0,0,0))
+    text_rect = victory_text.get_rect(center=(BOX_WIDTH//2, (BOX_HEIGHT//4)-(SQUARE_SIZE*0.5)))
     box.blit(victory_text, text_rect)
 
-    # Pawn image (scaled smaller)
-    winning_side = "wp" if white_wins else "bp"
-    pawn = IMAGES[winning_side]
-    pawn_size = int(SQUARE_SIZE * 0.9)
-    pawn = pygame.transform.smoothscale(pawn, (pawn_size, pawn_size))
+    # --- IMAGE ---
+    if draw:
+        img = DRAW
+    else:
+        img = IMAGES["wp"] if white_wins else IMAGES["bp"]
 
-    pawn_rect = pawn.get_rect(center=(BOX_WIDTH//2, BOX_HEIGHT//2))
-    box.blit(pawn, pawn_rect)
+    img_size = int(SQUARE_SIZE * 0.9)
+    img = pygame.transform.smoothscale(img, (img_size, img_size))
 
-    # Crown (scaled)
-    crown_size = int(SQUARE_SIZE * 0.7)
-    crown = pygame.transform.smoothscale(CROWN, (crown_size, crown_size))
+    img_rect = img.get_rect(center=(BOX_WIDTH//2, BOX_HEIGHT//2))
+    box.blit(img, img_rect)
 
-    # Position crown on pawn head
-    crown_rect = crown.get_rect(
-        midbottom=(pawn_rect.centerx, pawn_rect.top + 8)
-    )
-    box.blit(crown, crown_rect)
+    # --- CROWN (only for wins) ---
+    if not draw:
+        crown_size = int(SQUARE_SIZE * 0.7)
+        crown = pygame.transform.smoothscale(CROWN, (crown_size, crown_size))
 
-    # Restart button
+        crown_rect = crown.get_rect(
+            midbottom=(img_rect.centerx, img_rect.top + 8)
+        )
+        box.blit(crown, crown_rect)
+
+    # --- RESTART BUTTON ---
     BTN_W, BTN_H = 140, 80
     btn_x = BOX_WIDTH//2 - BTN_W//2
     btn_y = BOX_HEIGHT - BTN_H - 15
@@ -318,20 +379,21 @@ def draw_outcome(white_wins):
     return box
 
 
-def display_outcome(white_wins: bool, screen=screen):
-    box = draw_outcome(white_wins)
+def display_outcome(winner: str, screen=screen):
+    box = draw_outcome(winner)
 
     x = WIDTH // 2 - box.get_width() // 2
     y = HEIGHT // 2 - box.get_height() // 2
 
     screen.blit(box, (x, y))
+
     return pygame.Rect(x + button.x, y + button.y, button.width, button.height)
 
 # ------------------- LOGIC -------------------
 
 def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False):
     """
-    Move a piece from `origin` to `destination` and update the game state.
+    Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
     """
     orow, ocol = origin # origin-x and origin-y
     trow, tcol = destination
@@ -347,14 +409,15 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
         gamestate.promotion_active = True
         gamestate.promotion_square = (trow, tcol)
-        gamestate.promotion_color = piece.color
+        gamestate.promotion_color = piece.colour
     
         # calculate and store the four squares where the player can click
         gamestate.promotion_options = []
-        start_row = trow if piece.color == "w" else trow - 3 # 3 squares towards the top
+        start_row = trow if piece.colour == "w" else trow - 3 # 3 squares towards the top
         for i in range(4):
             gamestate.promotion_options.append((start_row + i, tcol))
 
+    # castling
     if isinstance(piece, King) and abs(tcol - ocol) == 2: # checks if distance between origin and target is 2, hence a castle has happened
         if tcol == 6:
             rook = gamestate.board[trow][7]
@@ -370,11 +433,52 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
             if rook is not None and hasattr(rook, "has_moved") and not simulate:
                 rook.has_moved = True # type: ignore
 
+
+    # update king position
     if isinstance(piece, King):
-        if piece.color == "w":
+        if piece.colour == "w":
             gamestate.white_king_pos = (trow, tcol)
         else:
             gamestate.black_king_pos = (trow, tcol)
+
+    # checkmat and stalemate detection
+    if piece is not None and not simulate:
+        # even though this looks like alot of code, its actually extremely simple
+
+        enemy = "w" if piece.colour == "b" else "b"
+        enemy_has_move = False
+
+        for r in range(8):
+            for c in range(8):
+                p = gamestate.board[r][c]
+
+                if p is None or p.colour != enemy: # only picks up pieces of the opposite colour
+                    continue
+
+                moves = p.get_legal_moves(gamestate.board, r, c)
+
+                for move in moves:
+                    if simulate_move(gamestate, (r, c), move): # if the move is allowed (hence it is a legal move), then the enemy has atleast 1 legal move and we dont have to check anymore moves
+                        enemy_has_move = True
+                        break
+
+                if enemy_has_move:
+                    break
+            if enemy_has_move:
+                break
+
+        if not enemy_has_move:
+            if king_in_check(gamestate, enemy):
+                print("checkmate!")
+                gamestate.game_over = True
+                gamestate.winner = piece.colour
+            else:
+                print("stalemate!")
+                gamestate.game_over = True
+                gamestate.winner = "d"
+
+        
+            
 
     
 
@@ -390,12 +494,12 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
             if piece is None:
                 continue
 
-            if piece.color != looking_color:
+            if piece.colour != looking_color:
                 continue
 
             # pawn attacks
             if isinstance(piece, Pawn):
-                direction = 1 if piece.color == "b" else -1
+                direction = 1 if piece.colour == "b" else -1
 
                 attack_squares = [
                 (r + direction, c + 1),
@@ -414,16 +518,16 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
 
     return False
 
-def king_in_check(gamestate: GameState, color):
+def king_in_check(gamestate: GameState, colour):
     # build args
-    king_pos = gamestate.white_king_pos if color == "w" else gamestate.black_king_pos
-    enemy = "b" if color == "w" else "w"
+    king_pos = gamestate.white_king_pos if colour == "w" else gamestate.black_king_pos
+    enemy = "b" if colour == "w" else "w"
     return square_is_attacked(king_pos, enemy, gamestate) # pass the args
 
 def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) -> bool:
     """
-returns if a move is allowed (does not result in check)
-"""
+    returns if a move is allowed (does not result in check)
+    """
     # Save original state
     orow, ocol = origin
     trow, tcol = target
@@ -451,6 +555,7 @@ returns if a move is allowed (does not result in check)
     rook_has_moved = None
 
     if (isinstance(orig_piece, King) and abs(tcol - ocol) == 2): # if the king ever moves two squares, its a castle
+        # save the rooks positions so they can be returned after the move is simulated
         if tcol == 6:  # kingside
             rook_origin = (trow, 7)
             rook_dest = (trow, 5)
@@ -463,14 +568,12 @@ returns if a move is allowed (does not result in check)
         if rook_piece and hasattr(rook_piece, "has_moved"):
             rook_has_moved = rook_piece.has_moved
 
-
-    
-    # 1) King cannot castle out of check
-        if king_in_check(gamestate, orig_piece.color):
+        # 1) King cannot castle out of check
+        if king_in_check(gamestate, orig_piece.colour):
             return False
 
-    # 2) King cannot castle through check (intermediate square)
-        enemy = "b" if orig_piece.color == "w" else "w"
+        # 2) King cannot castle through check (intermediate square)
+        enemy = "b" if orig_piece.colour == "w" else "w"
         step = 1 if tcol > ocol else -1
         intermediate = (orow, ocol + step) # the square directly next to the king in the direction of the castle
 
@@ -478,15 +581,15 @@ returns if a move is allowed (does not result in check)
         gamestate.board[orow][ocol] = None
         gamestate.board[intermediate[0]][intermediate[1]] = orig_piece
 
-    # temporarily update king position so square_is_attacked sees the king move
-        if orig_piece.color == "w":
+        # temporarily update king position so square_is_attacked sees the king move
+        if orig_piece.colour == "w":
             gamestate.white_king_pos = intermediate
         else:
             gamestate.black_king_pos = intermediate
 
         through_check = square_is_attacked(intermediate, enemy, gamestate)
 
-    # restore
+        # restore
         gamestate.board[orow][ocol] = orig_piece
         gamestate.board[intermediate[0]][intermediate[1]] = saved_intermediate
         gamestate.white_king_pos = white_king_pos
@@ -495,17 +598,15 @@ returns if a move is allowed (does not result in check)
         if through_check:
             return False
     
-
-
     move_piece(gamestate, origin, target, simulate=True)
 
 # Check if king is in check
     if orig_piece is not None:
-        in_check = king_in_check(gamestate, orig_piece.color)
+        in_check = king_in_check(gamestate, orig_piece.colour)
     else:
         in_check = False
 
-# return to original state
+    # return to original state
     gamestate.board[orow][ocol] = orig_piece
     gamestate.board[trow][tcol] = target_piece
 
@@ -517,13 +618,13 @@ returns if a move is allowed (does not result in check)
     gamestate.promotion_color = promotion_color
     gamestate.promotion_options = promotion_options
 
-# Restore has_moved flags
+    # Restore has_moved flags
     if orig_piece and hasattr(orig_piece, "has_moved") and orig_has_moved is not None:
         orig_piece.has_moved = orig_has_moved
     if target_piece and hasattr(target_piece, "has_moved") and target_has_moved is not None:
         target_piece.has_moved = target_has_moved
 
-# Restore castling rook position
+    # Restore castling rook position
     if rook_origin is not None and rook_dest is not None:
         gamestate.board[rook_origin[0]][rook_origin[1]] = rook_piece
         gamestate.board[rook_dest[0]][rook_dest[1]] = rook_dest_piece
@@ -543,8 +644,9 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
 
     piece = gamestate.board[row][col]
 
-    if ((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True:
-        gamestate.board = BOARDS.get(board_mode, standard_board)()
+    if ((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True: # (5,4) and (5,3) are roughly the squares that the reset button sits on
+        # return all settings to defaults        
+        gamestate.board = BOARDS.get(board_mode, standard_board)() # reset board back to the current board mode
         
         gamestate.selected_square = None
         gamestate.legal_moves = []
@@ -556,28 +658,30 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
 
         gamestate.white_king_pos = (7, 4)
         gamestate.black_king_pos = (0, 4)
-        
+        if board_mode == "stalemate":
+            gamestate.black_king_pos = (0,7)
+            gamestate.white_king_pos = (2,6)
         gamestate.white_turn = True
         gamestate.game_over = False
 
         return None
 
-# If a piece is already selected, try to move it
+    # If a piece is already selected, try to move it
     if gamestate.selected_square:
         if (row, col) in gamestate.legal_moves:
-            move_piece(gamestate, gamestate.selected_square, (row, col))
+            move_piece(gamestate, gamestate.selected_square, (row, col)) # becuase legal moves is built on selection, we dont have to simulate the move
             gamestate.selected_square = None
             gamestate.legal_moves = []
             return None
 
-# Select a piece
+    # Select a piece
     if piece is not None:
-        if (gamestate.white_turn and piece.color == "w") or (not gamestate.white_turn and piece.color == "b"):
+        if (gamestate.white_turn and piece.colour == "w") or (not gamestate.white_turn and piece.colour == "b"):
             pseudo_moves = piece.get_legal_moves(gamestate.board, row, col)
             gamestate.legal_moves = [move for move in pseudo_moves if simulate_move(gamestate, (row, col), move)]
             return (row, col)
 
-# otherwise clear selection
+    # otherwise clear selection
     gamestate.legal_moves = []
     return None
 
@@ -601,7 +705,6 @@ def handle_promotion(gamestate: GameState):
         gamestate.promotion_options = []
         
 # ------------------- MAIN LOOP -------------------
-# gamestate.game_over = True # REMOVE
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -619,10 +722,10 @@ while running:
     if gamestate.promotion_active and gamestate.promotion_square:
         piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
         if piece is not None:
-            display_prom_menu(piece.color, gamestate.promotion_square)
+            display_prom_menu(piece.colour, gamestate.promotion_square)
 
-    if gamestate.game_over:
-        display_outcome(white_wins=True)
+    if gamestate.game_over and gamestate.winner is not None:
+        display_outcome(winner=gamestate.winner)
     
     pygame.display.flip()
 

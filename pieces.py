@@ -17,7 +17,7 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, color, max_distance=8) -> list[coordinate]:
+def move_helper(board, row, col, directions, colour, max_distance=8) -> list[coordinate]:
     moves: list[coordinate] = []
     for drow, dcol in directions:
         trow, tcol = row + drow, col + dcol
@@ -27,7 +27,7 @@ def move_helper(board, row, col, directions, color, max_distance=8) -> list[coor
 
             if target is None:
                 moves.append((trow, tcol))
-            elif target.color != color:
+            elif target.colour != colour:
                 moves.append((trow, tcol))
                 break
             else:
@@ -39,8 +39,8 @@ def move_helper(board, row, col, directions, color, max_distance=8) -> list[coor
     return moves
 
 class Piece:
-    def __init__(self, color: str, name: str, has_moved: bool=False):
-        self.color = color
+    def __init__(self, colour: str, name: str, has_moved: bool=False):
+        self.colour = colour
         self.name = name
         self.has_moved = has_moved
 
@@ -63,17 +63,17 @@ class Piece:
         return []
 
     def image_key(self):
-        return self.color + self.name.lower()
+        return self.colour + self.name.lower()
     
 class Pawn(Piece):
     def get_legal_moves(self, board, row, col):
         moves: list[coordinate] = []
-        direction = -1 if self.color == "w" else 1
+        direction = -1 if self.colour == "w" else 1
 
         if 0 <= row + direction < 8 and board[row + direction][col] is None:
             moves.append((row + direction, col))
 
-        starting_row = 6 if self.color == "w" else 1
+        starting_row = 6 if self.colour == "w" else 1
         if row == starting_row:
             if board[row + direction][col] is None and board[row + 2 * direction][col] is None:
                 moves.append((row + 2 * direction, col))
@@ -82,7 +82,7 @@ class Pawn(Piece):
             c = col + dc
             if 0 <= c < 8 and 0 <= row + direction < 8:
                 target = board[row + direction][c]
-                if target is not None and target.color != self.color:
+                if target is not None and target.colour != self.colour:
                     moves.append((row + direction, c))
 
         return moves
@@ -99,7 +99,7 @@ class Knight(Piece):
             r, c = row + dr, col + dc
             if 0 <= r < 8 and 0 <= c < 8:
                 target: Piece | None = board[r][c]
-                if target is None or target.color != self.color:
+                if target is None or target.colour != self.colour:
                     moves.append((r, c))
         return moves
     
@@ -107,17 +107,17 @@ class Knight(Piece):
 class Bishop(Piece):
     def get_legal_moves(self, board, row, col):
         directions = [(1,1), (-1,1), (-1,-1), (1,-1)]
-        return move_helper(board, row, col, directions, self.color)
+        return move_helper(board, row, col, directions, self.colour)
     
 class Rook(Piece):
     def get_legal_moves(self, board, row, col):
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
-        return move_helper(board, row, col, directions, self.color)
+        return move_helper(board, row, col, directions, self.colour)
     
 class Queen(Piece):
     def get_legal_moves(self, board, row, col):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        return move_helper(board, row, col, directions, self.color)
+        return move_helper(board, row, col, directions, self.colour)
     
 class King(Piece):
     def get_legal_moves(self, board, row, col):
@@ -127,19 +127,19 @@ class King(Piece):
         # Queenside castling
         if not self.has_moved:
             rook_spot = board[row][0]
-            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.color == self.color and not rook_spot.has_moved and
+            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.colour == self.colour and not rook_spot.has_moved and
                 board[row][1] is None and board[row][2] is None and board[row][3] is None):
                 moves.append((row, 2))
         
         # Kingside castling
         if not self.has_moved:
             rook_spot = board[row][7]
-            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.color == self.color and not rook_spot.has_moved and
+            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.colour == self.colour and not rook_spot.has_moved and
                 board[row][5] is None and board[row][6] is None):
                 moves.append((row, 6))
         
         # Normal king moves
-        moves += move_helper(board, row, col, directions, self.color, max_distance=1)
+        moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
         return moves
     
 if __name__ == '__main__':
