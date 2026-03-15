@@ -132,7 +132,7 @@ def checkmate_test_board() -> Board:
     board[0][4] = King("b", "K")      # e8
     board[1][3] = Pawn("b", "P")      # d7
     board[1][4] = Pawn("b", "P")      # e7
-    board[1][5] = Pawn("b", "R")      # f7
+    board[1][5] = Pawn("b", "P")      # f7
 
     # White pieces delivering mate
     board[7][4] = King("w", "K")      # e1 (safe king)
@@ -156,7 +156,8 @@ def stalemate_test_board() -> Board:
 
 print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. " 
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
-print("if you are running the exe, and can see this terminal, you are running a pre-release.")
+print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
+
 BOARDS: dict[str, FunctionType] = {
 "standard": standard_board,
 "promotion": promotion_test_board,
@@ -213,7 +214,7 @@ pygame.init()
 pygame.font.init()
 gamestate = GameState()
 
-SCREEN_SIZE = 1000
+SCREEN_SIZE = 800
 WIDTH, HEIGHT = SCREEN_SIZE, SCREEN_SIZE
 SQUARE_SIZE = SCREEN_SIZE // 8 # each square length is 80 pixels
 
@@ -436,6 +437,7 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
             gamestate.board[trow][7] = None
             if rook is not None and hasattr(rook, "has_moved") and not simulate:
                 rook.has_moved = True # type: ignore
+                # SAFTEY: the king can only move two squares if the rook exists in the right square, so the rook square will always contain a rook
 
         if tcol == 2:
             rook = gamestate.board[trow][0]
@@ -443,6 +445,7 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
             gamestate.board[trow][0] = None
             if rook is not None and hasattr(rook, "has_moved") and not simulate:
                 rook.has_moved = True # type: ignore
+                # SAFTEY: the king can only move two squares if the rook exists in the right square, so the rook square will always contain a rook 
 
 
     # update king position
