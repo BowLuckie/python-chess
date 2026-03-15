@@ -156,7 +156,7 @@ def stalemate_test_board() -> Board:
 
 print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. " 
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
-print("if you are running the exe, and can this terminal, you are running a pre-release.")
+print("if you are running the exe, and can see this terminal, you are running a pre-release.")
 BOARDS: dict[str, FunctionType] = {
 "standard": standard_board,
 "promotion": promotion_test_board,
