@@ -32,8 +32,6 @@
 #
 # [ ] AI opponent?
 
-# DOING: 
-
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
 # some ai written code
@@ -45,15 +43,17 @@ from types import FunctionType
 import pygame
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
-import json
-import sys
-import os
-import warnings
+import subprocess, sys, os, json
 
 def resource_path(relative_path: str) -> str:
     # _MEIPASS exists only when bundled by PyInstaller
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, relative_path)
+
+def restart_program():
+    pygame.quit()
+    subprocess.Popen([sys.executable] + sys.argv)
+    sys.exit()
 
 # ----------- DATA/SETUP -----------
 
@@ -62,11 +62,43 @@ coordinate: TypeAlias = tuple[int, int]
 Board: TypeAlias = list[list[None | Piece]]
 Color: TypeAlias = tuple[int, int, int]
 
-class KingPosError(Exception):
+def data_path(filename: str) -> str:
+    # ai code
     """
-    atleast 1 king has been placed in the wrong spot. Kings must be placed in (0,4) and (7,4) for black and white respectively
+    Returns the path to a file next to the executable.
+    Works both in dev and PyInstaller builds.
     """
-    pass
+    if getattr(sys, "frozen", False):
+        # PyInstaller: sys.executable is the exe path
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # Normal Python execution
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, filename)
+
+
+SETTINGS_FILE = data_path("settings.json")
+
+# Default settings
+DEFAULT_SETTINGS = {
+    "screen_size": 800  # default value
+}
+
+def load_settings() -> dict:
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            print("an error has occured")
+            pass
+    # If file missing or corrupted, return defaults
+    return DEFAULT_SETTINGS.copy() # creates a new pointer in this scope and returns it
+
+
+def save_settings(settings: dict):
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(settings, f, indent=4)
 
 # ------------------- BOARD SETUP -------------------
 def standard_board() -> Board:
@@ -165,7 +197,7 @@ def en_passant_test_board() -> Board:
 
     return board
 
-print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete board_mode.json to rebuild it. " 
+print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
@@ -180,7 +212,7 @@ BOARDS: dict[str, FunctionType] = {
 }
 
 def get_board_mode() -> str:
-    path = resource_path("board_mode.json")
+    path = resource_path("settings.json")
     try:
         with open(path, "r") as f:
             data = json.load(f)
@@ -223,15 +255,21 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.game_over: bool = False
         self.winner: str | None = None
 
-        
+def set_screen_size(size: int):
+    global WIDTH, HEIGHT, SQUARE_SIZE
+
+    WIDTH = size
+    HEIGHT = size
+    SQUARE_SIZE = WIDTH // 8
+    pygame.display.set_mode((WIDTH, HEIGHT))
+
+settings = load_settings()
 
 pygame.init()
 pygame.font.init()
 gamestate = GameState()
 
-SCREEN_SIZE = 800
-WIDTH, HEIGHT = SCREEN_SIZE, SCREEN_SIZE
-SQUARE_SIZE = SCREEN_SIZE // 8 # each square length is 80 pixels
+set_screen_size(settings.get("screen_size", 800))
 
 ICON = pygame.image.load(resource_path("pieces/bp.png"))
 screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -268,6 +306,28 @@ d = pygame.image.load(resource_path("pieces/draw.png"))
 DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
 
 # ------------------- DRAWING FUNCTIONS -------------------
+
+def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255), outline_color=(0,0,0), outline_width=2, alpha=255, surf_size: int | None=None):
+    font = pygame.font.SysFont(font_name, font_size)
+    base = font.render(text, True, text_color).convert_alpha()
+    size = (base.get_width() + outline_width*2, base.get_height() + outline_width*2)
+    surf = pygame.Surface(size if surf_size is None else (surf_size, surf_size), pygame.SRCALPHA)
+
+    for dx in range(-outline_width, outline_width+1):
+        for dy in range(-outline_width, outline_width+1):
+            if dx != 0 or dy != 0:
+                outline = font.render(text, True, outline_color).convert_alpha()
+                surf.blit(outline, (dx + outline_width, dy + outline_width))
+
+    surf.blit(base, (outline_width, outline_width))
+    surf.set_alpha(alpha)
+    return surf
+
+
+text_surf = text_outline(text="Press ESC to return to the main menu", alpha=150)
+
+# Bottom-left position
+text_rect: pygame.Rect = text_surf.get_rect(bottomleft=(10, HEIGHT - 10))
 
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
     for row in range(8):
@@ -413,8 +473,19 @@ def display_outcome(winner: str, screen=screen):
     y = HEIGHT // 2 - box.get_height() // 2
 
     screen.blit(box, (x, y))
+    
 
     return pygame.Rect(x + button.x, y + button.y, button.width, button.height)
+
+def build_bg() -> pygame.Surface:
+    bg = pygame.Surface((WIDTH, HEIGHT))
+    for row in range(8):
+        for col in range(8):
+            colour = COLOURS[(row + col) % 2]
+            pygame.draw.rect(bg, colour,
+                            (col * SQUARE_SIZE, row * SQUARE_SIZE,
+                            SQUARE_SIZE, SQUARE_SIZE))
+    return bg
 
 # ------------------- LOGIC -------------------
 
@@ -734,15 +805,22 @@ def handle_promotion(gamestate: GameState):
         gamestate.promotion_options = []
         
 # ------------------- MAIN LOOP -------------------
-if __name__ == "__main__":
+def main():
+    global running
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
+            elif gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN: # for some reason, scrolling also trigger this, and i dont know how to fix that
                 handle_promotion(gamestate)
             elif not gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
                 gamestate.selected_square = piece_clicked(gamestate)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    print("escape")
+                    import menu
+                    menu.main()
+
 
         square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
         draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
@@ -757,7 +835,13 @@ if __name__ == "__main__":
         if gamestate.game_over and gamestate.winner is not None:
             display_outcome(winner=gamestate.winner)
         
+        screen.blit(text_surf, text_rect)
         pygame.display.flip()
 
     pygame.quit()
 
+if __name__ == "__main__":
+    try:
+        main()
+    except pygame.error:
+        print("pygame has been closed in another module or location.")

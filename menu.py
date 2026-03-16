@@ -1,12 +1,8 @@
 import pygame
 import pygame_gui
 import chess
-import subprocess, sys, os
+import settings
 
-def blur_surface(surface: pygame.Surface, scale_factor: float=0.1):
-    small = pygame.transform.smoothscale(surface, (int(surface.get_width()*scale_factor),
-                                                   int(surface.get_height()*scale_factor)))
-    return pygame.transform.smoothscale(small, surface.get_size())
 
 pygame.init()
 
@@ -15,20 +11,16 @@ screen = pygame.display.set_mode((chess.WIDTH, chess.HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT))
+theme_file = chess.resource_path("theme.json")
+manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_file)
 
 font_big = pygame.font.SysFont("Arial", 40, bold=True)
 
-title_text = font_big.render("Python Chess", True, (0,0,0))
+title_text = chess.text_outline("Python Chess", font_size=100, outline_width=4)
 title_rect = title_text.get_rect(center=(chess.WIDTH//2, chess.HEIGHT//4))
 
-bg = pygame.Surface((chess.WIDTH, chess.HEIGHT))
-for row in range(8):
-    for col in range(8):
-        colour = chess.COLOURS[(row + col) % 2]
-        pygame.draw.rect(bg, colour,
-                         (col * chess.SQUARE_SIZE, row * chess.SQUARE_SIZE,
-                          chess.SQUARE_SIZE, chess.SQUARE_SIZE))
+
+bg = chess.build_bg()
 
 # --- pygame_gui UI elements ---
 start_button = pygame_gui.elements.UIButton(
@@ -51,7 +43,8 @@ quit_button = pygame_gui.elements.UIButton(
 
 clock: pygame.Clock = pygame.time.Clock()
 running: bool = True
-if __name__ == "__main__":
+def main():
+    global running
     while running:
         time_delta = clock.tick(60) / 1000.0
 
@@ -61,22 +54,12 @@ if __name__ == "__main__":
 
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == start_button:
-
-                    pygame.quit() # close the menu window
-
-                    # Run chess.py
-                    chess_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chess.py')
-                    subprocess.run([sys.executable, chess_script])
-                    sys.exit()  # Ensure menu process ends
+                    chess.main()
+                    
                             
                 elif event.ui_element == settings_button:
-                    pygame.quit() # close the menu window
-
-                    # Run chess.py
-                    chess_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.py')
-                    subprocess.run([sys.executable, chess_script])
-                    sys.exit()  # Ensure menu process ends
-
+                    settings.main()
+                    
                 elif event.ui_element == quit_button:
                     running = False
 
@@ -84,10 +67,13 @@ if __name__ == "__main__":
 
         manager.update(time_delta)
 
-        screen.blit(blur_surface(bg), (0, 0))
+        screen.blit(pygame.transform.box_blur(bg, radius=7)) # gaussian blur could also be used, but it is much slower so we will have to take the quality tradeoff
         screen.blit(title_text, title_rect)
 
         manager.draw_ui(screen)
         pygame.display.flip()
 
     pygame.quit()
+
+if __name__ == "__main__":
+    main()
