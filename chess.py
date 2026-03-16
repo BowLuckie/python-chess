@@ -197,6 +197,19 @@ def en_passant_test_board() -> Board:
 
     return board
 
+def draw_by_insufmat() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+
+    # kings
+    board[0][4] = King("b", "K")  # black king on e8
+    board[7][4] = King("w", "K")  # white king on e1
+
+    # extra pieces
+    board[6][3] = Queen("b", "Q")  # white knight on d2
+
+
+    return board
+
 print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
@@ -208,7 +221,8 @@ BOARDS: dict[str, FunctionType] = {
 "check": check_test_board,
 "checkmate": checkmate_test_board,
 "stalemate": stalemate_test_board,
-"enpassant": en_passant_test_board
+"enpassant": en_passant_test_board,
+"insufficientmat": draw_by_insufmat,
 }
 
 def get_board_mode() -> str:
@@ -254,6 +268,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
 
         self.game_over: bool = False
         self.winner: str | None = None
+        self.draw_type: str | None = None
 
 def set_screen_size(size: int):
     global WIDTH, HEIGHT, SQUARE_SIZE
@@ -332,7 +347,7 @@ text_rect: pygame.Rect = text_surf.get_rect(bottomleft=(10, HEIGHT - 10))
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
     for row in range(8):
         for col in range(8):
-            colour = COLOURS[(row + col) % 2]
+            colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
 
             if (row, col) == checked:
                 if colour == LIGHT:
@@ -401,7 +416,7 @@ def draw_outcome(winner: str):
     BOX_WIDTH = 6 * SQUARE_SIZE
     BORDER = 8
 
-    draw = winner == "d"
+    draw = (winner == "d") # draw is a bool
     white_wins = winner == "w"
 
     box = pygame.Surface((BOX_WIDTH, BOX_HEIGHT), pygame.SRCALPHA)
@@ -418,8 +433,10 @@ def draw_outcome(winner: str):
     font_btn = pygame.font.SysFont("Arial", 24)
 
     # --- TEXT ---
-    if draw:
-        text = "Draw by stalemate!"
+    if draw and gamestate.draw_type:
+        text = "Draw by " + gamestate.draw_type + "!"
+    elif draw:
+        text = "Draw!"
     else:
         text = "White wins!" if white_wins else "Black wins!"
 
@@ -481,13 +498,50 @@ def build_bg() -> pygame.Surface:
     bg = pygame.Surface((WIDTH, HEIGHT))
     for row in range(8):
         for col in range(8):
-            colour = COLOURS[(row + col) % 2]
+            colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
             pygame.draw.rect(bg, colour,
                             (col * SQUARE_SIZE, row * SQUARE_SIZE,
                             SQUARE_SIZE, SQUARE_SIZE))
     return bg
 
 # ------------------- LOGIC -------------------
+
+def insufmat(board: Board) -> bool:
+    white_pieces: list[tuple[Piece, tuple[int,int]]] = []
+    black_pieces: list[tuple[Piece, tuple[int,int]]] = []
+
+    for row in range(8):
+        for col in range(8):
+            p = board[row][col]
+            if isinstance(p, Piece) and not isinstance(p, King):
+                if p.colour == "w":
+                    white_pieces.append((p, (row, col)))
+                else:
+                    black_pieces.append((p, (row, col)))
+
+    # K vs K
+    if len(white_pieces) == 0 and len(black_pieces) == 0:
+        return True
+
+    # K+minor vs K
+    if len(white_pieces) == 1 and len(black_pieces) == 0:
+        if isinstance(white_pieces[0][0], (Bishop, Knight)):
+            return True
+
+    if len(white_pieces) == 0 and len(black_pieces) == 1:
+        if isinstance(black_pieces[0][0], (Bishop, Knight)):
+            return True
+
+    # K+B vs K+B same square color
+    if len(white_pieces) == 1 and len(black_pieces) == 1:
+        wp, wsq = white_pieces[0]
+        bp, bsq = black_pieces[0]
+        if isinstance(wp, Bishop) and isinstance(bp, Bishop):
+            if (wsq[0] + wsq[1]) % 2 == (bsq[0] + bsq[1]) % 2:
+                return True
+
+    return False
+
 
 def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False):
     """
@@ -576,6 +630,12 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
                 print("stalemate!")
                 gamestate.game_over = True
                 gamestate.winner = "d"
+                gamestate.draw_type = "stalemate"
+
+        if insufmat(gamestate.board):
+            gamestate.winner = "d"
+            gamestate.game_over = True
+            gamestate.draw_type = "insufficient material"
 
         
             
