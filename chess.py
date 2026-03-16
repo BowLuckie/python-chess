@@ -150,7 +150,18 @@ def stalemate_test_board() -> Board:
     board[1][5] = Queen("w", "Q")  # f7
     board[2][6] = King("w", "K")   # g6
 
-    
+    return board
+
+def en_passant_test_board() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+
+    # kings (to keep position legal)
+    board[0][4] = King("b", "K")   # black king on e8
+    board[7][4] = King("w", "K")   # white king on e1
+
+    # pawns for en passant test
+    board[6][4] = Pawn("w", "P")   # white pawn on e5
+    board[4][3] = Pawn("b", "P")   # black pawn on d5 (just moved from d7)
 
     return board
 
@@ -165,6 +176,7 @@ BOARDS: dict[str, FunctionType] = {
 "check": check_test_board,
 "checkmate": checkmate_test_board,
 "stalemate": stalemate_test_board,
+"enpassant": en_passant_test_board
 }
 
 def get_board_mode() -> str:
@@ -178,7 +190,7 @@ def get_board_mode() -> str:
         with open(path, "w") as f:
             json.dump({
                 "board_mode": "standard",
-                "available_modes": ["standard", "promotion", "empty", "castling", "check", "checkmate", "stalemate"]
+                "available_modes": list(BOARDS.keys())
             }, f)
         return "standard"
 
@@ -186,6 +198,7 @@ board_mode = get_board_mode() # change to match keys in BOARDS dictionary
 
 class GameState:  # this class contains all the mutable variables that migtht need to be accsed throughout the code
     def __init__(self):
+        # adding type annotations can often catch runtime errors before as they are interpreted
         self.board: Board = BOARDS.get(board_mode, standard_board)() # .get allows us to specify a default value as apposeded to indexing which raises an error
 
         self.white_turn = True
@@ -204,6 +217,8 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         if board_mode == "stalemate":
             self.black_king_pos = (0,7)
             self.white_king_pos = (2,6)
+
+        self.last_double_pawn: coordinate | None = None
 
         self.game_over: bool = False
         self.winner: str | None = None
