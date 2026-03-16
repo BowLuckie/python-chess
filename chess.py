@@ -734,29 +734,30 @@ def handle_promotion(gamestate: GameState):
         gamestate.promotion_options = []
         
 # ------------------- MAIN LOOP -------------------
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
-            handle_promotion(gamestate)
-        elif not gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
-            gamestate.selected_square = piece_clicked(gamestate)
+if __name__ == "__main__":
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
+                handle_promotion(gamestate)
+            elif not gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
+                gamestate.selected_square = piece_clicked(gamestate)
 
-    square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
-    draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
-    draw_pieces(screen, gamestate.board)
-    draw_legal_moves(screen, gamestate.legal_moves)
+        square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+        draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
+        draw_pieces(screen, gamestate.board)
+        draw_legal_moves(screen, gamestate.legal_moves)
 
-    if gamestate.promotion_active and gamestate.promotion_square:
-        piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
-        if piece is not None:
-            display_prom_menu(piece.colour, gamestate.promotion_square)
+        if gamestate.promotion_active and gamestate.promotion_square:
+            piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
+            if piece is not None:
+                display_prom_menu(piece.colour, gamestate.promotion_square)
 
-    if gamestate.game_over and gamestate.winner is not None:
-        display_outcome(winner=gamestate.winner)
-    
-    pygame.display.flip()
+        if gamestate.game_over and gamestate.winner is not None:
+            display_outcome(winner=gamestate.winner)
+        
+        pygame.display.flip()
 
-pygame.quit()
+    pygame.quit()
 
