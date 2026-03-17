@@ -9,7 +9,7 @@
 # [/] Piece logic 
 
 # special rules
-# [ ] En passant
+# [/] En passant
 # [/] Promotion
 # [/] Castling
 # [ ] other draws
