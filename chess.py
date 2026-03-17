@@ -45,16 +45,6 @@ from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 import subprocess, sys, os, json
 from random import choice
 
-def resource_path(relative_path: str) -> str:
-    # _MEIPASS exists only when bundled by PyInstaller
-    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
-    return os.path.join(base_path, relative_path)
-
-def restart_program():
-    pygame.quit()
-    subprocess.Popen([sys.executable] + sys.argv)
-    sys.exit()
-
 # ----------- DATA/SETUP -----------
 
 # aliases
@@ -99,6 +89,12 @@ def load_settings() -> dict:
 def save_settings(settings: dict):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f, indent=4)
+
+class KingError(Exception):
+    """
+    Kings Not Found
+    """
+    pass
 
 # ------------------- BOARD SETUP -------------------
 
@@ -230,10 +226,6 @@ def test_ai_prom() -> Board:
 
     return board
 
-print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
-"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
-print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
-
 BOARDS: dict[str, FunctionType] = {
 "standard": standard_board,
 "promotion": promotion_test_board,
@@ -245,6 +237,16 @@ BOARDS: dict[str, FunctionType] = {
 "insufficientmat": draw_by_insufmat,
 "aipromotion": test_ai_prom,
 }
+
+def resource_path(relative_path: str) -> str:
+    # _MEIPASS exists only when bundled by PyInstaller
+    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
+
+def restart_program():
+    pygame.quit()
+    subprocess.Popen([sys.executable] + sys.argv)
+    sys.exit()
 
 def get_board_mode() -> str:
     path = resource_path("settings.json")
@@ -281,22 +283,34 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.promotion_color: str | None = None
         self.promotion_click_locations: list[coordinate] = []
 
-        self.white_king_pos: coordinate = (7, 4)
-        self.black_king_pos: coordinate = (0, 4)
-
-        if board_mode == "stalemate":
-            self.black_king_pos = (0,7)
-            self.white_king_pos = (2,6)
+        self.white_king_pos, self.black_king_pos = self.find_kings()
         
         if board_mode == "aipromotion":
             self.black_king_pos = (0,0)
             self.white_king_pos = (7,7)
 
         self.last_double_pawn: coordinate | None = None
+        self.en_passant_square: coordinate | None = None
 
         self.game_over: bool = False
         self.winner: str | None = None
         self.draw_type: str | None = None
+
+    def find_kings(self) -> tuple[coordinate, coordinate]:
+        bk = None
+        wk = None
+        for row in range(8):
+            for col in range(8):
+                p = self.board[row][col]
+
+                if p is not None and isinstance(p, King):
+                    if p.colour == "w":
+                        wk = (row, col)
+                    else:
+                        bk = (row, col)
+        if wk is None or bk is None:
+            raise KingError
+        return wk, bk
 
 def set_screen_size(size: int):
     global WIDTH, HEIGHT, SQUARE_SIZE
@@ -918,6 +932,10 @@ def handle_promotion(gamestate: GameState, ai_promoting=False):
     gamestate.white_turn = True
         
 # ------------------- MAIN LOOP -------------------
+
+print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
+"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
+print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
 def main(ai: bool | None=ai_glob):
     global running, ai_glob
