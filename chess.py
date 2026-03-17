@@ -54,20 +54,18 @@ coordinate: TypeAlias = tuple[int, int]
 Board: TypeAlias = list[list[None | Piece]]
 Color: TypeAlias = tuple[int, int, int]
 
-def data_path(filename: str) -> str:
-    # ai code
+def data_path(filename: str, writeable=False) -> str:
     """
-    Returns the path to a file next to the executable.
-    Works both in dev and PyInstaller builds.
+    Returns a path to a file next to the executable.
+    If writeable=True, returns a path that can be written to.
     """
-    if getattr(sys, "frozen", False):
-        # PyInstaller: sys.executable is the exe path
-        base_path = os.path.dirname(sys.executable)
+    if writeable:
+        # always save next to exe or in dev folder
+        base_path = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.abspath(".")
     else:
-        # Normal Python execution
-        base_path = os.path.abspath(".")
+        # read-only bundled resources
+        base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, filename)
-
 
 SETTINGS_FILE = data_path("settings.json")
 
