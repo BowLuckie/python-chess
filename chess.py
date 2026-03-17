@@ -101,6 +101,7 @@ def save_settings(settings: dict):
         json.dump(settings, f, indent=4)
 
 # ------------------- BOARD SETUP -------------------
+
 def standard_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 
@@ -210,6 +211,25 @@ def draw_by_insufmat() -> Board:
 
     return board
 
+def test_ai_prom() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+
+    # --- Black setup ---
+    # King trapped in corner
+    board[0][0] = King("b", "K")
+
+    # Pawn ready to promote (moving "down" to row 7)
+    board[6][1] = Pawn("b", "P")
+
+    # --- White setup ---
+    # White king far away so it doesn't interfere
+    board[7][7] = King("w", "K")
+
+    # A piece that forces white to have a move but not affect black
+    board[5][6] = Queen("w", "Q")
+
+    return board
+
 print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
@@ -223,6 +243,7 @@ BOARDS: dict[str, FunctionType] = {
 "stalemate": stalemate_test_board,
 "enpassant": en_passant_test_board,
 "insufficientmat": draw_by_insufmat,
+"aipromotion": test_ai_prom,
 }
 
 def get_board_mode() -> str:
@@ -255,7 +276,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.promotion_active = False
         self.promotion_square: coordinate | None = None
         self.promotion_color: str | None = None
-        self.promotion_options: list[coordinate] = []
+        self.promotion_click_locations: list[coordinate] = []
 
         self.white_king_pos: coordinate = (7, 4)
         self.black_king_pos: coordinate = (0, 4)
@@ -263,6 +284,10 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         if board_mode == "stalemate":
             self.black_king_pos = (0,7)
             self.white_king_pos = (2,6)
+        
+        if board_mode == "aipromotion":
+            self.black_king_pos = (0,0)
+            self.white_king_pos = (7,7)
 
         self.last_double_pawn: coordinate | None = None
 
@@ -293,7 +318,7 @@ pygame.display.set_icon(ICON)
 
 running = True
 
-ai_glob = False
+ai_glob = True # if chess.py is "__main__" then this is the default it takes
 
 LIGHT: Color = 230, 210, 170
 DARK: Color = 184, 135, 98
@@ -304,6 +329,7 @@ CHECKED_LIGHT: Color = 235, 121, 99
 CHECKED_DARK: Color = 225, 105, 84
 
 OPTIONS: list[str] = ["Q", "R", "B", "N"]
+CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
 
 # ------------------- LOAD PIECE IMAGES -------------------
 
@@ -325,6 +351,7 @@ DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
 # ------------------- DRAWING FUNCTIONS -------------------
 
 def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255), outline_color=(0,0,0), outline_width=2, alpha=255, surf_size: int | None=None):
+    # ai code
     font = pygame.font.SysFont(font_name, font_size)
     base = font.render(text, True, text_color).convert_alpha()
     size = (base.get_width() + outline_width*2, base.get_height() + outline_width*2)
@@ -567,10 +594,10 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
         gamestate.promotion_color = piece.colour
     
         # calculate and store the four squares where the player can click
-        gamestate.promotion_options = []
+        gamestate.promotion_click_locations = []
         start_row = trow if piece.colour == "w" else trow - 3 # 3 squares towards the top
         for i in range(4):
-            gamestate.promotion_options.append((start_row + i, tcol))
+            gamestate.promotion_click_locations.append((start_row + i, tcol))
 
     # castling
     if isinstance(piece, King) and abs(tcol - ocol) == 2: # checks if distance between origin and target is 2, hence a castle has happened
@@ -641,32 +668,44 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
             gamestate.draw_type = "insufficient material"
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
-            # this is all the ai code, it is actually really simple
-            ai_legs = []
-            for row in range(8):
-                for col in range(8):
-                    p = gamestate.board[row][col]
-                    if p is not None and p.colour == "b":
-                        for cord in p.get_legal_moves(gamestate.board, row, col):
-                            move = ((row, col), cord)
-                            if simulate_move(gamestate, move[0], move[1]):
-                                ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
-            try: 
-                print(ai_chosen_move := choice(ai_legs))
-                move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True)
-            except IndexError:
-                gamestate.game_over = True
-                if king_in_check(gamestate=gamestate, colour="b"):
-                    gamestate.winner = "w"
-                else:
-                    gamestate.winner = "d"
-                    gamestate.draw_type = "stalemate"
-
-            
+            if not (isinstance(piece, Pawn) and destination[0] == 0): # if human moved a pawn to the back rank
+                # this is all the ai code, it is actually really simple
+                move_ai(gamestate, ai_move)
+            else:
+                return 
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate:
         gamestate.white_turn = not gamestate.white_turn
+
+def move_ai(gamestate: GameState, ai_move: bool):
+    ai_legs = []
+    for row in range(8):
+        for col in range(8):
+            p = gamestate.board[row][col]
+            if p is not None and p.colour == "b":
+                for cord in p.get_legal_moves(gamestate.board, row, col):
+                    move = ((row, col), cord)
+                    if simulate_move(gamestate, move[0], move[1]):
+                        ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
+    try: 
+        print(ai_chosen_move := choice(ai_legs)) 
+        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True)
+        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
+        if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
+                gamestate.promotion_active = False
+                gamestate.promotion_square = None
+                gamestate.promotion_color = None
+                
+                newp = choice(CLASSES_OPTIONS)
+                gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
+    except IndexError:
+        gamestate.game_over = True
+        if king_in_check(gamestate=gamestate, colour="b"):
+            gamestate.winner = "w"
+        else:
+            gamestate.winner = "d"
+            gamestate.draw_type = "stalemate"
 
 def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState):
     for r in range(8):
@@ -723,7 +762,7 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
     promotion_active = gamestate.promotion_active
     promotion_square = gamestate.promotion_square
     promotion_color = gamestate.promotion_color
-    promotion_options = gamestate.promotion_options.copy()
+    promotion_options = gamestate.promotion_click_locations.copy()
 
 # Save has_moved flags
     orig_has_moved = orig_piece.has_moved if orig_piece and hasattr(orig_piece, "has_moved") else None
@@ -798,7 +837,7 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
     gamestate.promotion_active = promotion_active
     gamestate.promotion_square = promotion_square
     gamestate.promotion_color = promotion_color
-    gamestate.promotion_options = promotion_options
+    gamestate.promotion_click_locations = promotion_options
 
     # Restore has_moved flags
     if orig_piece and hasattr(orig_piece, "has_moved") and orig_has_moved is not None:
@@ -869,17 +908,22 @@ def restore_defaults(gamestate):
     if board_mode == "stalemate":
         gamestate.black_king_pos = (0,7)
         gamestate.white_king_pos = (2,6)
+
+    if board_mode == "aipromotion":
+        gamestate.black_king_pos = (0,0)
+        gamestate.white_king_pos = (7,7)
+        
     gamestate.white_turn = True
     gamestate.game_over = False
 
-def handle_promotion(gamestate: GameState):
+def handle_promotion(gamestate: GameState, ai_promoting=False):
     mouse_x, mouse_y = pygame.mouse.get_pos()
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
-    if (row, col) in gamestate.promotion_options and gamestate.promotion_square is not None:
+    if (row, col) in gamestate.promotion_click_locations and gamestate.promotion_square is not None:
         options_classes = [Queen, Rook, Bishop, Knight]
         options_letters = ["Q", "R", "B", "N"]  # must match the image keys
 
-        chosen_index = row - gamestate.promotion_options[0][0]
+        chosen_index = row - gamestate.promotion_click_locations[0][0]
         gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]] = options_classes[chosen_index](
         gamestate.promotion_color,
         options_letters[chosen_index]
@@ -889,9 +933,13 @@ def handle_promotion(gamestate: GameState):
         gamestate.promotion_active = False
         gamestate.promotion_square = None
         gamestate.promotion_color = None
-        gamestate.promotion_options = []
+        gamestate.promotion_click_locations = []
+    if ai_glob:
+        move_ai(gamestate=gamestate, ai_move=False)
+    gamestate.white_turn = True
         
 # ------------------- MAIN LOOP -------------------
+
 def main(ai: bool | None=ai_glob):
     global running, ai_glob
     ai_glob = ai
