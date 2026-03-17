@@ -48,9 +48,9 @@ quit_button = pygame_gui.elements.UIButton(
 )
 
 clock: pygame.Clock = pygame.time.Clock()
-running: bool = True
+
 def main():
-    global running
+    running = True
     while running:
         time_delta = clock.tick(60) / 1000.0
 

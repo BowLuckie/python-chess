@@ -10,7 +10,6 @@ pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
 clock: pygame.Clock = pygame.time.Clock()
-running: bool = True
 
 theme_file = chess.resource_path("theme.json")
 manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_file)
@@ -49,7 +48,7 @@ back_button = pygame_gui.elements.UIButton(
 
 
 def main():
-    global running
+    running: bool = True
     while running:
         time_delta = clock.tick(60) / 1000.0
 

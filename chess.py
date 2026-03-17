@@ -333,8 +333,6 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-running = True
-
 ai_glob = False # if chess.py is "__main__" then this is the default it takes
 
 LIGHT: Color = 230, 210, 170
@@ -854,9 +852,11 @@ print("\033[33mif you made a new board, add it to BOARDS and json.dump method be
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
 def main(ai: bool | None=ai_glob):
-    global running, ai_glob
+    global ai_glob
     ai_glob = ai
     gamestate.reset()
+    running = True  # local running flag
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -895,5 +895,6 @@ def main(ai: bool | None=ai_glob):
 if __name__ == "__main__":
     try:
         main(ai=ai_glob)
-    except pygame.error:
-        print("pygame has been closed in another module or location.")
+    except pygame.error as e:
+        if str(e) != "video system not initialized":
+            raise # re-raise any other errors
