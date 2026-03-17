@@ -265,6 +265,9 @@ board_mode = get_board_mode() # change to match keys in BOARDS dictionary
 
 class GameState:  # this class contains all the mutable variables that migtht need to be accsed throughout the code
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         # adding type annotations can often catch runtime errors before as they are interpreted
         self.board: Board = BOARDS.get(board_mode, standard_board)() # .get allows us to specify a default value as apposeded to indexing which raises an error
 
@@ -867,7 +870,7 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
 
     if ((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True: # (5,4) and (5,3) are roughly the squares that the reset button sits on
         # return all settings to defaults        
-        restore_defaults(gamestate)
+        gamestate.reset()
 
         return None
 
@@ -891,30 +894,6 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
     # otherwise clear selection
     gamestate.legal_moves = []
     return None
-
-def restore_defaults(gamestate):
-    gamestate.board = BOARDS.get(board_mode, standard_board)() # reset board back to the current board mode
-        
-    gamestate.selected_square = None
-    gamestate.legal_moves = []
-
-    gamestate.promotion_active = False
-    gamestate.promotion_square = None
-    gamestate.promotion_color = None
-    gamestate.promotion_options = []
-
-    gamestate.white_king_pos = (7, 4)
-    gamestate.black_king_pos = (0, 4)
-    if board_mode == "stalemate":
-        gamestate.black_king_pos = (0,7)
-        gamestate.white_king_pos = (2,6)
-
-    if board_mode == "aipromotion":
-        gamestate.black_king_pos = (0,0)
-        gamestate.white_king_pos = (7,7)
-        
-    gamestate.white_turn = True
-    gamestate.game_over = False
 
 def handle_promotion(gamestate: GameState, ai_promoting=False):
     mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -943,7 +922,7 @@ def handle_promotion(gamestate: GameState, ai_promoting=False):
 def main(ai: bool | None=ai_glob):
     global running, ai_glob
     ai_glob = ai
-    restore_defaults(gamestate=gamestate)
+    gamestate.reset()
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
