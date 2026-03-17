@@ -23,20 +23,26 @@ title_rect = title_text.get_rect(center=(chess.WIDTH//2, chess.HEIGHT//4))
 bg = chess.build_bg()
 
 # --- pygame_gui UI elements ---
-start_button = pygame_gui.elements.UIButton(
+friend_button = pygame_gui.elements.UIButton(
     relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 - 50, 200, 50),
-    text="Start Game",
+    text="Play against friend",
+    manager=manager
+)
+
+solo_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 10, 200, 50),
+    text="Play Against Ai",
     manager=manager
 )
 
 settings_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 10, 200, 50),
+    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 70, 200, 50),
     text="Settings",
     manager=manager
 )
 
 quit_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 70, 200, 50),
+    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 130, 200, 50),
     text="Quit",
     manager=manager
 )
@@ -53,10 +59,12 @@ def main():
                 running = False
 
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                if event.ui_element == start_button:
-                    chess.main()
+                if event.ui_element == friend_button:
+                    chess.main(ai=False)
                     
-                            
+                elif event.ui_element == solo_button:
+                    chess.main(ai=True)     
+                           
                 elif event.ui_element == settings_button:
                     settings.main()
                     

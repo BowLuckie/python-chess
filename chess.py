@@ -30,7 +30,7 @@
 # [/] Separate code into modules?
 # 
 #
-# [ ] AI opponent?
+# [/] AI opponent?
 
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
@@ -38,12 +38,12 @@
 
 # /----------- CODE -----------/
 
-from types import FunctionType
-
 import pygame
+from types import FunctionType
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 import subprocess, sys, os, json
+from random import choice
 
 def resource_path(relative_path: str) -> str:
     # _MEIPASS exists only when bundled by PyInstaller
@@ -293,6 +293,8 @@ pygame.display.set_icon(ICON)
 
 running = True
 
+ai_glob = False
+
 LIGHT: Color = 230, 210, 170
 DARK: Color = 184, 135, 98
 COLOURS: list[Color] = [LIGHT, DARK] 
@@ -339,10 +341,11 @@ def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255)
     return surf
 
 
-text_surf = text_outline(text="Press ESC to return to the main menu", alpha=150)
+exit_surf = text_outline(text="Press ESC to return to the main menu", alpha=150)
+exit_rect: pygame.Rect = exit_surf.get_rect(bottomleft=(10, HEIGHT - 10)) # Bottom-left position
 
-# Bottom-left position
-text_rect: pygame.Rect = text_surf.get_rect(bottomleft=(10, HEIGHT - 10))
+ai_surf = text_outline(text="Playing against AI", alpha=150)
+ai_rect: pygame.Rect = ai_surf.get_rect(bottomright=(WIDTH - 10, HEIGHT - 10))
 
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
     for row in range(8):
@@ -543,7 +546,7 @@ def insufmat(board: Board) -> bool:
     return False
 
 
-def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False):
+def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False, ai_move=False):
     """
     Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
     """
@@ -637,10 +640,29 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
             gamestate.game_over = True
             gamestate.draw_type = "insufficient material"
 
-        
-            
+        if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
+            # this is all the ai code, it is actually really simple
+            ai_legs = []
+            for row in range(8):
+                for col in range(8):
+                    p = gamestate.board[row][col]
+                    if p is not None and p.colour == "b":
+                        for cord in p.get_legal_moves(gamestate.board, row, col):
+                            move = ((row, col), cord)
+                            if simulate_move(gamestate, move[0], move[1]):
+                                ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
+            try: 
+                print(ai_chosen_move := choice(ai_legs))
+                move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True)
+            except IndexError:
+                gamestate.game_over = True
+                if king_in_check(gamestate=gamestate, colour="b"):
+                    gamestate.winner = "w"
+                else:
+                    gamestate.winner = "d"
+                    gamestate.draw_type = "stalemate"
 
-    
+            
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate:
@@ -760,7 +782,7 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
     
     move_piece(gamestate, origin, target, simulate=True)
 
-# Check if king is in check
+    # Check if king is in check
     if orig_piece is not None:
         in_check = king_in_check(gamestate, orig_piece.colour)
     else:
@@ -806,23 +828,7 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
 
     if ((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True: # (5,4) and (5,3) are roughly the squares that the reset button sits on
         # return all settings to defaults        
-        gamestate.board = BOARDS.get(board_mode, standard_board)() # reset board back to the current board mode
-        
-        gamestate.selected_square = None
-        gamestate.legal_moves = []
-
-        gamestate.promotion_active = False
-        gamestate.promotion_square = None
-        gamestate.promotion_color = None
-        gamestate.promotion_options = []
-
-        gamestate.white_king_pos = (7, 4)
-        gamestate.black_king_pos = (0, 4)
-        if board_mode == "stalemate":
-            gamestate.black_king_pos = (0,7)
-            gamestate.white_king_pos = (2,6)
-        gamestate.white_turn = True
-        gamestate.game_over = False
+        restore_defaults(gamestate)
 
         return None
 
@@ -836,14 +842,35 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
 
     # Select a piece
     if piece is not None:
+        if ai_glob and piece.colour == "b":
+            return None
         if (gamestate.white_turn and piece.colour == "w") or (not gamestate.white_turn and piece.colour == "b"):
             pseudo_moves = piece.get_legal_moves(gamestate.board, row, col)
-            gamestate.legal_moves = [move for move in pseudo_moves if simulate_move(gamestate, (row, col), move)]
+            gamestate.legal_moves = [move for move in pseudo_moves if simulate_move(gamestate, (row, col), move)] # simulate every move in psuedo moves and if they sucseed add them here
             return (row, col)
 
     # otherwise clear selection
     gamestate.legal_moves = []
     return None
+
+def restore_defaults(gamestate):
+    gamestate.board = BOARDS.get(board_mode, standard_board)() # reset board back to the current board mode
+        
+    gamestate.selected_square = None
+    gamestate.legal_moves = []
+
+    gamestate.promotion_active = False
+    gamestate.promotion_square = None
+    gamestate.promotion_color = None
+    gamestate.promotion_options = []
+
+    gamestate.white_king_pos = (7, 4)
+    gamestate.black_king_pos = (0, 4)
+    if board_mode == "stalemate":
+        gamestate.black_king_pos = (0,7)
+        gamestate.white_king_pos = (2,6)
+    gamestate.white_turn = True
+    gamestate.game_over = False
 
 def handle_promotion(gamestate: GameState):
     mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -865,8 +892,10 @@ def handle_promotion(gamestate: GameState):
         gamestate.promotion_options = []
         
 # ------------------- MAIN LOOP -------------------
-def main():
-    global running
+def main(ai: bool | None=ai_glob):
+    global running, ai_glob
+    ai_glob = ai
+    restore_defaults(gamestate=gamestate)
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -895,13 +924,15 @@ def main():
         if gamestate.game_over and gamestate.winner is not None:
             display_outcome(winner=gamestate.winner)
         
-        screen.blit(text_surf, text_rect)
+        screen.blit(exit_surf, exit_rect)
+        if ai:
+            screen.blit(ai_surf, ai_rect)
         pygame.display.flip()
 
     pygame.quit()
 
 if __name__ == "__main__":
     try:
-        main()
+        main(ai=ai_glob)
     except pygame.error:
         print("pygame has been closed in another module or location.")
