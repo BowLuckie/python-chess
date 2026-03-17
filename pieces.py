@@ -12,6 +12,10 @@
 # [ ] Implement King class
 
 from typing import TypeAlias
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from chess import GameState # only when the interpreter is type checking, not at runtime
 
 coordinate: TypeAlias = tuple[int, int]
 
@@ -44,7 +48,7 @@ class Piece:
         self.name = name
         self.has_moved = has_moved
 
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row, col, gamestate):
         """
         Return all legal destination squares for the piece from a given position.
 
@@ -60,13 +64,13 @@ class Piece:
         Returns:
             list[coordinate]: List of valid (row, col) squares the piece can move to.
         """
-        return []
+        raise NotImplementedError("Sub-class of piece unspecified: Piece is the parent class, and so there is no movement options defined")
 
     def image_key(self):
         return self.colour + self.name.lower()
     
 class Pawn(Piece):
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row: int, col: int, gamestate):
         moves: list[coordinate] = []
         direction = -1 if self.colour == "w" else 1
 
@@ -82,13 +86,19 @@ class Pawn(Piece):
             c = col + dc
             if 0 <= c < 8 and 0 <= row + direction < 8:
                 target = board[row + direction][c]
-                if target is not None and target.colour != self.colour:
+                if target is not None and target.colour != self.colour: # if piece is of the opposite colour, then you can move there (capture)
+                    moves.append((row + direction, c))
+
+        for dc in [-1, 1]:
+            c = col + dc
+            if 0 <= c < 8:
+                if (row, c) == gamestate.last_double_pawn:
                     moves.append((row + direction, c))
 
         return moves
 
 class Knight(Piece):
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row, col, gamestate):
         moves: list[coordinate] = []
         offsets = [
             (-2, -1), (-2, 1), (-1, -2), (-1, 2),
@@ -105,22 +115,22 @@ class Knight(Piece):
     
 # the rest of the pieces require no specialized behavior for base movement
 class Bishop(Piece):
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,1), (-1,1), (-1,-1), (1,-1)]
         return move_helper(board, row, col, directions, self.colour)
     
 class Rook(Piece):
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
         return move_helper(board, row, col, directions, self.colour)
     
 class Queen(Piece):
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         return move_helper(board, row, col, directions, self.colour)
     
 class King(Piece):
-    def get_legal_moves(self, board, row, col):
+    def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         moves: list[coordinate] = []
         

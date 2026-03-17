@@ -24,19 +24,21 @@
 # UI improvements
 # [/] Highlight legal moves
 # [/] Display check/checkmate message
-# [ ] flip board after each move
+# [ ] flip board after each move?
 
 # code improvements
 # [/] Separate code into modules?
 # 
 #
-# [/] AI opponent?
+# [/] AI opponent
 
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
 # some ai written code
 
 # /----------- CODE -----------/
+
+import copy
 
 import pygame
 from types import FunctionType
@@ -335,7 +337,7 @@ pygame.display.set_icon(ICON)
 
 running = True
 
-ai_glob = True # if chess.py is "__main__" then this is the default it takes
+ai_glob = False # if chess.py is "__main__" then this is the default it takes
 
 LIGHT: Color = 230, 210, 170
 DARK: Color = 184, 135, 98
@@ -590,12 +592,12 @@ def insufmat(board: Board) -> bool:
     return False
 
 
-def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate, simulate=False, ai_move=False):
+def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, simulate=False, ai_move=False):
     """
     Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
     """
     orow, ocol = origin # origin-x and origin-y
-    trow, tcol = destination
+    trow, tcol = target
 
     gamestate.board[trow][tcol] = gamestate.board[orow][ocol] # dupe the piece into the new position
     gamestate.board[orow][ocol] = None # remove old piece
@@ -603,6 +605,8 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
     piece = gamestate.board[trow][tcol]
     if piece is not None and hasattr(piece, "has_moved") and not simulate: # checks if the peice has the "has_moved" attribute
         piece.has_moved = True
+
+    # if (trow, tcol) == gamestate.en_passant_square
 
     # promotion
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
@@ -634,6 +638,15 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
                 rook.has_moved = True # type: ignore
                 # SAFTEY: the king can only move two squares if the rook exists in the right square, so the rook square will always contain a rook 
 
+    if isinstance(piece, Pawn) and abs(trow - orow) == 2:
+        direction = -1 if piece.colour == "w" else 1
+        gamestate.last_double_pawn = (trow, tcol)
+        gamestate.en_passant_square = (trow - direction, tcol)
+        print(gamestate.last_double_pawn, gamestate.en_passant_square)
+
+    if isinstance(piece, Pawn) and target == gamestate.en_passant_square and gamestate.last_double_pawn is not None:
+        print("EN PASSA")
+        gamestate.board[gamestate.last_double_pawn[0]][gamestate.last_double_pawn[1]] = None
 
     # update king position
     if isinstance(piece, King):
@@ -656,7 +669,7 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
                 if p is None or p.colour != enemy: # only picks up pieces of the opposite colour
                     continue
 
-                moves = p.get_legal_moves(gamestate.board, r, c)
+                moves = p.get_legal_moves(gamestate.board, r, c, gamestate)
 
                 for move in moves:
                     if simulate_move(gamestate, (r, c), move): # if the move is allowed (hence it is a legal move), then the enemy has atleast 1 legal move and we dont have to check anymore moves
@@ -685,7 +698,7 @@ def move_piece(gamestate: GameState, origin: coordinate, destination: coordinate
             gamestate.draw_type = "insufficient material"
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
-            if not (isinstance(piece, Pawn) and destination[0] == 0): # if human moved a pawn to the back rank
+            if not (isinstance(piece, Pawn) and target[0] == 0): # if human moved a pawn to the back rank
                 # this is all the ai code, it is actually really simple
                 move_ai(gamestate, ai_move)
             else:
@@ -701,7 +714,7 @@ def move_ai(gamestate: GameState, ai_move: bool):
         for col in range(8):
             p = gamestate.board[row][col]
             if p is not None and p.colour == "b":
-                for cord in p.get_legal_moves(gamestate.board, row, col):
+                for cord in p.get_legal_moves(gamestate.board, row, col, gamestate):
                     move = ((row, col), cord)
                     if simulate_move(gamestate, move[0], move[1]):
                         ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
@@ -749,7 +762,7 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
                         if (ar, ac) == square:
                             return True
             else:
-                moves = piece.get_legal_moves(gamestate.board, r, c)
+                moves = piece.get_legal_moves(gamestate.board, r, c, gamestate)
 
                 if square in moves:
                     return True
@@ -763,114 +776,19 @@ def king_in_check(gamestate: GameState, colour):
     return square_is_attacked(king_pos, enemy, gamestate) # pass the args
 
 def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) -> bool:
-    """
-    returns if a move is allowed (does not result in check)
-    """
-    # Save original state
-    orow, ocol = origin
-    trow, tcol = target
-
-    orig_piece = gamestate.board[orow][ocol]
-    target_piece = gamestate.board[trow][tcol]
-
-    white_king_pos = gamestate.white_king_pos
-    black_king_pos = gamestate.black_king_pos
-
-    promotion_active = gamestate.promotion_active
-    promotion_square = gamestate.promotion_square
-    promotion_color = gamestate.promotion_color
-    promotion_options = gamestate.promotion_click_locations.copy()
-
-# Save has_moved flags
-    orig_has_moved = orig_piece.has_moved if orig_piece and hasattr(orig_piece, "has_moved") else None
-    target_has_moved = target_piece.has_moved if target_piece and hasattr(target_piece, "has_moved") else None
-
-# For castling, save rook origin/destination so it can be restored after simulation
-    rook_origin = None
-    rook_dest = None
-    rook_piece = None
-    rook_dest_piece = None
-    rook_has_moved = None
-
-    if (isinstance(orig_piece, King) and abs(tcol - ocol) == 2): # if the king ever moves two squares, its a castle
-        # save the rooks positions so they can be returned after the move is simulated
-        if tcol == 6:  # kingside
-            rook_origin = (trow, 7)
-            rook_dest = (trow, 5)
-        else:  # queenside
-            rook_origin = (trow, 0)
-            rook_dest = (trow, 3)
-
-        rook_piece = gamestate.board[rook_origin[0]][rook_origin[1]]
-        rook_dest_piece = gamestate.board[rook_dest[0]][rook_dest[1]]
-        if rook_piece and hasattr(rook_piece, "has_moved"):
-            rook_has_moved = rook_piece.has_moved
-
-        # 1) King cannot castle out of check
-        if king_in_check(gamestate, orig_piece.colour):
-            return False
-
-        # 2) King cannot castle through check (intermediate square)
-        enemy = "b" if orig_piece.colour == "w" else "w"
-        step = 1 if tcol > ocol else -1
-        intermediate = (orow, ocol + step) # the square directly next to the king in the direction of the castle
-
-        saved_intermediate = gamestate.board[intermediate[0]][intermediate[1]]
-        gamestate.board[orow][ocol] = None
-        gamestate.board[intermediate[0]][intermediate[1]] = orig_piece
-
-        # temporarily update king position so square_is_attacked sees the king move
-        if orig_piece.colour == "w":
-            gamestate.white_king_pos = intermediate
-        else:
-            gamestate.black_king_pos = intermediate
-
-        through_check = square_is_attacked(intermediate, enemy, gamestate)
-
-        # restore
-        gamestate.board[orow][ocol] = orig_piece
-        gamestate.board[intermediate[0]][intermediate[1]] = saved_intermediate
-        gamestate.white_king_pos = white_king_pos
-        gamestate.black_king_pos = black_king_pos
-
-        if through_check:
-            return False
+    # create a complete copy of the game state
+    temp_state = copy.deepcopy(gamestate)
     
-    move_piece(gamestate, origin, target, simulate=True)
-
-    # Check if king is in check
-    if orig_piece is not None:
-        in_check = king_in_check(gamestate, orig_piece.colour)
-    else:
-        in_check = False
-
-    # return to original state
-    gamestate.board[orow][ocol] = orig_piece
-    gamestate.board[trow][tcol] = target_piece
-
-    gamestate.white_king_pos = white_king_pos
-    gamestate.black_king_pos = black_king_pos
-
-    gamestate.promotion_active = promotion_active
-    gamestate.promotion_square = promotion_square
-    gamestate.promotion_color = promotion_color
-    gamestate.promotion_click_locations = promotion_options
-
-    # Restore has_moved flags
-    if orig_piece and hasattr(orig_piece, "has_moved") and orig_has_moved is not None:
-        orig_piece.has_moved = orig_has_moved
-    if target_piece and hasattr(target_piece, "has_moved") and target_has_moved is not None:
-        target_piece.has_moved = target_has_moved
-
-    # Restore castling rook position
-    if rook_origin is not None and rook_dest is not None:
-        gamestate.board[rook_origin[0]][rook_origin[1]] = rook_piece
-        gamestate.board[rook_dest[0]][rook_dest[1]] = rook_dest_piece
-
-        if rook_piece and hasattr(rook_piece, "has_moved") and rook_has_moved is not None:
-            rook_piece.has_moved = rook_has_moved
-
-    return (not in_check)
+    piece = temp_state.board[origin[0]][origin[1]] # capture the piece before it was moved
+    move_piece(temp_state, origin, target, simulate=True)
+    
+    # determine color
+    colour = piece.colour if piece else None
+    if colour is None:
+        return True  # nothing to move, technically not illegal
+    
+    # Check if king is in check after the simulated move
+    return not king_in_check(temp_state, colour)
 
 # ------------------- MOUSE CLICK -------------------
 
@@ -901,7 +819,7 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
         if ai_glob and piece.colour == "b":
             return None
         if (gamestate.white_turn and piece.colour == "w") or (not gamestate.white_turn and piece.colour == "b"):
-            pseudo_moves = piece.get_legal_moves(gamestate.board, row, col)
+            pseudo_moves = piece.get_legal_moves(gamestate.board, row, col, gamestate)
             gamestate.legal_moves = [move for move in pseudo_moves if simulate_move(gamestate, (row, col), move)] # simulate every move in psuedo moves and if they sucseed add them here
             return (row, col)
 
