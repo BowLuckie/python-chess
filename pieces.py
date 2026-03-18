@@ -128,30 +128,44 @@ class Queen(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         return move_helper(board, row, col, directions, self.colour)
-    
-class King(Piece):
+
+
+class King(Piece):  
     def get_legal_moves(self, board, row, col, gamestate):
+        from chess import king_in_check, square_is_attacked
+
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         moves: list[coordinate] = []
-        
+
+        enemy = "w" if self.colour == "b" else "b"
+
         # Queenside castling
-        if not self.has_moved:
+        if not self.has_moved and not king_in_check(gamestate, self.colour):
             rook_spot = board[row][0]
-            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.colour == self.colour and not rook_spot.has_moved and
+            if (rook_spot is not None and isinstance(rook_spot, Rook) and
+                rook_spot.colour == self.colour and not rook_spot.has_moved and
                 board[row][1] is None and board[row][2] is None and board[row][3] is None):
-                moves.append((row, 2))
-        
+
+                if (not square_is_attacked((row, col-1),enemy,gamestate=gamestate) and 
+                    not square_is_attacked((row, col-2),enemy,gamestate=gamestate)):
+                    moves.append((row, 2))
+
         # Kingside castling
-        if not self.has_moved:
+        if not self.has_moved and not king_in_check(gamestate, self.colour):
             rook_spot = board[row][7]
-            if (rook_spot is not None and isinstance(rook_spot, Rook) and rook_spot.colour == self.colour and not rook_spot.has_moved and
+            if (rook_spot is not None and isinstance(rook_spot, Rook) and
+                rook_spot.colour == self.colour and not rook_spot.has_moved and
                 board[row][5] is None and board[row][6] is None):
-                moves.append((row, 6))
-        
+
+                if (not square_is_attacked((row, col+1),enemy,gamestate=gamestate) and 
+                    not square_is_attacked((row, col+2),enemy,gamestate=gamestate)):
+                    moves.append((row, 6))
+
         # Normal king moves
         moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
+
         return moves
-    
+        
 if __name__ == '__main__':
     # --- ai generated code ---
     # when this module is executed as a script, delegate to the

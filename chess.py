@@ -663,7 +663,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         gamestate.board[gamestate.last_double_pawn[0]][gamestate.last_double_pawn[1]] = None
 
     # update king position
-    if isinstance(piece, King):
+    if piece is not None and isinstance(piece, King):
         if piece.colour == "w":
             gamestate.white_king_pos = (trow, tcol)
         else:
@@ -715,7 +715,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 # this is all the ai code, it is actually really simple
                 move_ai(gamestate, ai_move)
             else:
-                return 
+                return # breaks out of the function
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate:
@@ -755,28 +755,33 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
         for c in range(8):
             piece = gamestate.board[r][c]
 
-            if piece is None:
-                continue
-
-            if piece.colour != looking_color:
+            if piece is None or piece.colour != looking_color:
                 continue
 
             # pawn attacks
             if isinstance(piece, Pawn):
                 direction = 1 if piece.colour == "b" else -1
-
-                attack_squares = [
-                (r + direction, c + 1),
-                (r + direction, c - 1)
-            ]
+                attack_squares = [(r + direction, c + 1), (r + direction, c - 1)]
 
                 for ar, ac in attack_squares:
                     if 0 <= ar < 8 and 0 <= ac < 8:
                         if (ar, ac) == square:
                             return True
+
+            # king attacks (NO castling)
+            elif isinstance(piece, King):
+                directions = [(1,0), (-1,0), (0,1), (0,-1),
+                              (1,1), (-1,1), (-1,-1), (1,-1)]
+
+                for dr, dc in directions:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < 8 and 0 <= nc < 8:
+                        if (nr, nc) == square:
+                            return True
+
+            # all other pieces
             else:
                 moves = piece.get_legal_moves(gamestate.board, r, c, gamestate)
-
                 if square in moves:
                     return True
 
