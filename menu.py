@@ -2,6 +2,7 @@ import pygame
 import pygame_gui
 import chess
 import settings
+import pygame.transform
 
 
 pygame.init()
@@ -10,6 +11,7 @@ ICON = pygame.image.load(chess.resource_path("pieces/bp.png"))
 screen = pygame.display.set_mode((chess.WIDTH, chess.HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
+
 
 theme_file = chess.resource_path("theme.json")
 manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_file)
@@ -20,7 +22,9 @@ title_text = chess.text_outline("Python Chess", font_size=100, outline_width=4)
 title_rect = title_text.get_rect(center=(chess.WIDTH//2, chess.HEIGHT//4))
 
 
-bg = chess.build_bg()
+
+
+
 
 # --- pygame_gui UI elements ---
 friend_button = pygame_gui.elements.UIButton(
@@ -50,6 +54,15 @@ quit_button = pygame_gui.elements.UIButton(
 clock: pygame.Clock = pygame.time.Clock()
 
 def main():
+    bg = chess.build_bg()
+
+    try:
+        blurred = pygame.transform.box_blur(bg, radius=7)
+    except AttributeError:
+        blurred = bg
+
+    screen.blit(blurred)
+
     running = True
     while running:
         time_delta = clock.tick(60) / 1000.0
@@ -75,7 +88,7 @@ def main():
 
         manager.update(time_delta)
 
-        screen.blit(pygame.transform.box_blur(bg, radius=7)) # gaussian blur could also be used, but it is much slower so we will have to take the quality tradeoff
+        screen.blit(blurred) # gaussian blur could also be used, but it is much slower so we will have to take the quality tradeoff
         screen.blit(title_text, title_rect)
 
         manager.draw_ui(screen)
@@ -84,4 +97,8 @@ def main():
     pygame.quit()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except pygame.error as e:
+        if str(e) != "video system not initialized":
+            raise # re-raise any other errors

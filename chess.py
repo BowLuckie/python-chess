@@ -35,6 +35,8 @@
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
 # some ai written code
+#
+# [/] fix _MEIPASS handling
 
 # /----------- CODE -----------/
 
@@ -46,6 +48,7 @@ from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 import subprocess, sys, os, json
 from random import choice
+import pygame.transform
 
 # ----------- DATA/SETUP -----------
 
@@ -67,7 +70,7 @@ def data_path(filename: str, writeable=False) -> str:
         base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, filename)
 
-SETTINGS_FILE = data_path("settings.json")
+SETTINGS_FILE = data_path("settings.json", writeable=True)
 
 # Default settings
 DEFAULT_SETTINGS = {
@@ -84,7 +87,6 @@ def load_settings() -> dict:
             pass
     # If file missing or corrupted, return defaults
     return DEFAULT_SETTINGS.copy() # creates a new pointer in this scope and returns it
-
 
 def save_settings(settings: dict):
     with open(SETTINGS_FILE, "w") as f:
@@ -244,9 +246,27 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 def restart_program():
-    pygame.quit()
-    subprocess.Popen([sys.executable] + sys.argv)
-    sys.exit()
+    """
+    Restart the application.
+    When frozen by PyInstaller --onefile, launch the original exe (sys.argv[0]).
+    When running normally, launch the Python interpreter (sys.executable).
+    """
+    if getattr(sys, "frozen", False):
+        # sys.argv[0] is the path to the original exe the user launched
+        exe_to_run = os.path.abspath(sys.argv[0])
+        args = [exe_to_run]
+    else:
+        exe_to_run = sys.executable
+        args = [exe_to_run] + sys.argv
+
+    try:
+        subprocess.Popen(args)
+    except Exception:
+        # fallback: try launching sys.executable anyway
+        subprocess.Popen([sys.executable] + sys.argv)
+    finally:
+        # exit cleanly
+        sys.exit(0)
 
 def get_board_mode() -> str:
     path = resource_path("settings.json")
