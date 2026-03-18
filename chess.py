@@ -643,17 +643,16 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             gamestate.board[trow][5] = rook
             gamestate.board[trow][7] = None
             if rook is not None and hasattr(rook, "has_moved") and not simulate:
-                rook.has_moved = True # type: ignore
-                # SAFTEY: the king can only move two squares if the rook exists in the right square, so the rook square will always contain a rook
+                rook.has_moved = True 
+                
 
         if tcol == 2:
             rook = gamestate.board[trow][0]
             gamestate.board[trow][3] = rook
             gamestate.board[trow][0] = None
             if rook is not None and hasattr(rook, "has_moved") and not simulate:
-                rook.has_moved = True # type: ignore
-                # SAFTEY: the king can only move two squares if the rook exists in the right square, so the rook square will always contain a rook 
-
+                rook.has_moved = True 
+                
     if isinstance(piece, Pawn) and abs(trow - orow) == 2:
         direction = -1 if piece.colour == "w" else 1
         gamestate.last_double_pawn = (trow, tcol)
@@ -661,7 +660,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         print(gamestate.last_double_pawn, gamestate.en_passant_square)
 
     if isinstance(piece, Pawn) and target == gamestate.en_passant_square and gamestate.last_double_pawn is not None:
-        print("EN PASSA")
         gamestate.board[gamestate.last_double_pawn[0]][gamestate.last_double_pawn[1]] = None
 
     # update king position
@@ -673,7 +671,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
     # checkmat and stalemate detection
     if piece is not None and not simulate:
-        # even though this looks like alot of code, its actually extremely simple
 
         enemy = "w" if piece.colour == "b" else "b"
         enemy_has_move = False
