@@ -70,6 +70,7 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                return
 
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == friend_button:
@@ -94,11 +95,12 @@ def main():
         manager.draw_ui(screen)
         pygame.display.flip()
 
-    pygame.quit()
+    pygame.display.quit()
+    return 
 
 if __name__ == "__main__":
     try:
         main()
     except pygame.error as e:
-        if str(e) != "video system not initialized":
-            raise # re-raise any other errors
+        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+            print(e)

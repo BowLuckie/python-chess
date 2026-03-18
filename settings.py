@@ -59,6 +59,7 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                return
 
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == back_button:
@@ -89,13 +90,18 @@ def main():
         if restart_requested:
             running = False
 
-    pygame.quit()
     if restart_requested:
-        chess.restart_program()
+        pygame.display.quit()   # close only the window
+        chess.restart_program() # never returns
+
+    # normal exit back to menu
+    pygame.display.quit()
+    return
+    
 
 if __name__ == "__main__":
     try:
         main()
     except pygame.error as e:
-        if str(e) != "video system not initialized":
-            raise
+        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+            print(e)

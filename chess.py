@@ -410,35 +410,41 @@ ai_surf = text_outline(text="Playing against AI", alpha=150)
 ai_rect: pygame.Rect = ai_surf.get_rect(bottomright=(WIDTH - 10, HEIGHT - 10))
 
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
-    for row in range(8):
-        for col in range(8):
-            colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
+    try:
+        for row in range(8):
+            for col in range(8):
+                colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
 
-            if (row, col) == checked:
-                if colour == LIGHT:
-                    colour = CHECKED_LIGHT
-                else:
-                    colour = CHECKED_DARK
+                if (row, col) == checked:
+                    if colour == LIGHT:
+                        colour = CHECKED_LIGHT
+                    else:
+                        colour = CHECKED_DARK
 
-            if (row, col) == highlighted: # highlighted squares take priority over checked squares
-                if colour == LIGHT or colour == CHECKED_LIGHT:
-                    colour = LIGHT_SELECTED
-                else:
-                    colour = DARK_SELECTED
+                if (row, col) == highlighted: # highlighted squares take priority over checked squares
+                    if colour == LIGHT or colour == CHECKED_LIGHT:
+                        colour = LIGHT_SELECTED
+                    else:
+                        colour = DARK_SELECTED
 
-            pygame.draw.rect(
-            screen,
-            colour,
-            (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
-        )
+                pygame.draw.rect(
+                screen,
+                colour,
+                (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
+            )
+    except:
+        return
 
 def draw_pieces(screen, board):
-    for row in range(8):
-        for col in range(8):
-            piece = board[row][col]
-            if piece is not None:
-                screen.blit(IMAGES[piece.image_key()],
-                        (col * SQUARE_SIZE, row * SQUARE_SIZE))
+    try: # sometimes quitting the program can not communicate to the drawing functions
+        for row in range(8):
+            for col in range(8):
+                piece = board[row][col]
+                if piece is not None:
+                    screen.blit(IMAGES[piece.image_key()],
+                            (col * SQUARE_SIZE, row * SQUARE_SIZE))
+    except:
+        return
 
 def draw_legal_moves(screen, moves: list[coordinate]):
 # creates a temp surface with an alpha channel and blits that to the main screen surface
@@ -883,6 +889,7 @@ def main(ai: bool | None=ai_glob):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                return
             elif gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN: # for some reason, scrolling also trigger this, and i dont know how to fix that
                 handle_promotion(gamestate)
             elif not gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
@@ -912,11 +919,13 @@ def main(ai: bool | None=ai_glob):
             screen.blit(ai_surf, ai_rect)
         pygame.display.flip()
 
-    pygame.quit()
+    pygame.display.quit()
+    return  
 
 if __name__ == "__main__":
     try:
         main(ai=ai_glob)
     except pygame.error as e:
-        if str(e) != "video system not initialized":
-            raise # re-raise any other errors
+        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+            print(e)
+
