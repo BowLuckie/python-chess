@@ -120,11 +120,11 @@ def standard_board() -> Board:
 def promotion_test_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 # white pawns ready to promote
-    for col in range(8):
-        board[6][col] = Pawn("w", "P")
+    for col in range(2):
+        board[6][col] = Pawn("b", "P")
 # black pawns ready to promote
-    for col in range(8):
-        board[1][col] = Pawn("b", "P")
+    for col in range(2):
+        board[1][col] = Pawn("w", "P")
     board[7][4] = King("w", "K")
     board[0][4] = King("b", "K")
     return board
@@ -469,6 +469,8 @@ def draw_promotion(colour):
     menu.fill((255,255,255)) 
     for i, piece_name in enumerate(OPTIONS):
         prom_menu_img = IMAGES[colour.lower() + piece_name.lower()]
+        if not gamestate.white_turn:
+            prom_menu_img = pygame.transform.rotate(prom_menu_img, 180)
         menu.blit(prom_menu_img, (0, i * SQUARE_SIZE))
     return menu
 
@@ -632,9 +634,10 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         piece.has_moved = True
 
     # if (trow, tcol) == gamestate.en_passant_square
-
+    promotion_move = False
     # promotion
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
+        promotion_move = True
         gamestate.promotion_active = True
         gamestate.promotion_square = (trow, tcol)
         gamestate.promotion_color = piece.colour
@@ -730,8 +733,10 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 return # breaks out of the function
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
-    if not simulate and not double:
+    if not simulate and not double and not (not ai_glob and promotion_move):
+        print("t")
         gamestate.white_turn = not gamestate.white_turn
+
 
 def move_ai(gamestate: GameState, ai_move: bool=False, double: bool=False):
     ai_legs = []
@@ -858,7 +863,7 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
     gamestate.legal_moves = []
     return None
 
-def handle_promotion(gamestate: GameState, mouse_pos: coordinate, ai_promoting=False):
+def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
     mouse_x, mouse_y = mouse_pos
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
     if (row, col) in gamestate.promotion_click_locations and gamestate.promotion_square is not None:
@@ -868,8 +873,8 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate, ai_promoting=F
         chosen_index = row - gamestate.promotion_click_locations[0][0]
         gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]] = options_classes[chosen_index](
         gamestate.promotion_color,
-        options_letters[chosen_index]
-    )
+        options_letters[chosen_index])
+        gamestate.white_turn = not gamestate.white_turn
 
     # reset all the promotion related values
         gamestate.promotion_active = False
@@ -878,7 +883,7 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate, ai_promoting=F
         gamestate.promotion_click_locations = []
     if ai_glob:
         move_ai(gamestate=gamestate, ai_move=False)
-    gamestate.white_turn = True
+        gamestate.white_turn = True
         
 # ------------------- MAIN LOOP -------------------
 
