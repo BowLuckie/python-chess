@@ -1,3 +1,4 @@
+from time import sleep
 import pygame
 import pygame_gui
 import chess
@@ -92,6 +93,11 @@ def main():
 
                 if (row, col) == (6, 1):
                     ai_boost = not ai_boost
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    sleep(.1)
+                    running = False
 
             manager.process_events(event)
 

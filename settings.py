@@ -77,6 +77,11 @@ def main():
                     chess.settings["screen_size"] = 1000
                     chess.save_settings(chess.settings)
                     restart_requested = True
+                
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    import menu
+                    menu.main()
 
             manager.process_events(event)
 

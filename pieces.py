@@ -165,6 +165,13 @@ class King(Piece):
         moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
 
         return moves
+    
+class Soldier(Piece):
+    def get_legal_moves(self, board, row, col, gamestate):
+        directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
+        moves = move_helper(board, row, col, directions, self.colour, max_distance=1)
+
+        return moves
         
 if __name__ == '__main__':
     # --- ai generated code ---

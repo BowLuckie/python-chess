@@ -31,12 +31,11 @@
 # 
 #
 # [/] AI opponent
-
+# [/] fix _MEIPASS handling
+#
 # made from scratch with NO chess libraries
 # ALL assets stolen from chess.com
 # some ai written code
-#
-# [/] fix _MEIPASS handling
 
 # /----------- CODE -----------/
 
@@ -44,10 +43,23 @@ import pygame
 import copy
 from types import FunctionType
 from typing import TypeAlias
-from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
 import subprocess, sys, os, json
 from random import choice
 import pygame.transform
+
+from pieces import (
+    # classics
+    Piece,
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+    
+    # others
+    Soldier,
+)
 
 # ----------- DATA/SETUP -----------
 
@@ -194,6 +206,7 @@ def en_passant_test_board() -> Board:
     # pawns for en passant test
     board[6][4] = Pawn("w", "P")   # white pawn on e5
     board[4][3] = Pawn("b", "P")   # black pawn on d5 (just moved from d7)
+    board[5][5] = Rook("w", "R")
 
     return board
 
@@ -229,6 +242,24 @@ def test_ai_prom() -> Board:
 
     return board
 
+def military_test_board() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+
+# black pieces
+    board[0] = [
+    Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
+    King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
+]
+    board[1] = [Soldier("b", "s") for _ in range(8)]
+
+# white pieces
+    board[6] = [Soldier("w", "s") for _ in range(8)]
+    board[7] = [
+    Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
+    King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
+]
+    return board
+
 BOARDS: dict[str, FunctionType] = {
 "standard": standard_board,
 "promotion": promotion_test_board,
@@ -239,6 +270,7 @@ BOARDS: dict[str, FunctionType] = {
 "enpassant": en_passant_test_board,
 "insufficientmat": draw_by_insufmat,
 "aipromotion": test_ai_prom,
+"military": military_test_board,
 }
 
 def resource_path(relative_path: str) -> str:
@@ -358,7 +390,7 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
+ai_glob: bool = False # if chess.py is "__main__" then this is the default it takes
 ai_boost = False
 
 LIGHT: Color = 230, 210, 170
@@ -377,8 +409,14 @@ CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
 
 IMAGES = {}
 
-pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
+classics = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk"]
+
+military = ["ws", "bs"]
+
+pieces_list = classics + military
+print(pieces_list)
+
 try:
     for piece in pieces_list:
         # loop through each element in pieces_list and check if it has a corrosponding png in pieces/
@@ -929,6 +967,8 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
                 running = False
                 return
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button != 1:
+                    continue # dont excecute the following code if mousebutton is not 1 (left click)
                 mx, my = event.pos
 
                 if not gamestate.white_turn:
