@@ -99,6 +99,8 @@ class KingError(Exception):
 
 # ------------------- BOARD SETUP -------------------
 
+# each board is a function that returns a Board type, which is just an alias for list[list[None | Piece]], so each square will either have a Piece class or a None.
+
 def standard_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 
@@ -302,8 +304,11 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.promotion_color: str | None = None
         self.promotion_click_locations: list[coordinate] = []
 
-        self.white_king_pos, self.black_king_pos = self.find_kings()
-        
+        try:
+            self.white_king_pos, self.black_king_pos = self.find_kings()
+        except IndexError:
+            raise KingError(f"Board is missing a king! kings found: white: {self.white_king_pos if hasattr(GameState, "white_king_pos") else None}, black: {self.black_king_pos if hasattr(GameState, "black_king_pos") else None}")
+
         if board_mode == "aipromotion":
             self.black_king_pos = (0,0)
             self.white_king_pos = (7,7)
@@ -316,6 +321,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.draw_type: str | None = None
 
     def find_kings(self) -> tuple[coordinate, coordinate]:
+        # loops through each square until it finds a king and puts it into that colour
         bk = None
         wk = None
         for row in range(8):
@@ -352,16 +358,17 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob: bool = False # if chess.py is "__main__" then this is the default it takes
-ai_boost = True
+ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
+ai_boost = False
 
 LIGHT: Color = 230, 210, 170
 DARK: Color = 184, 135, 98
-COLOURS: list[Color] = [LIGHT, DARK] 
 LIGHT_SELECTED: Color = 255, 250, 125
 DARK_SELECTED: Color = 235, 205, 90
 CHECKED_LIGHT: Color = 235, 121, 99
 CHECKED_DARK: Color = 225, 105, 84
+
+COLOURS: list[Color] = [LIGHT, DARK] 
 
 OPTIONS: list[str] = ["Q", "R", "B", "N"]
 CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
@@ -372,16 +379,22 @@ IMAGES = {}
 
 pieces_list = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk"]
+try:
+    for piece in pieces_list:
+        # loop through each element in pieces_list and check if it has a corrosponding png in pieces/
+        p = pygame.image.load(resource_path("pieces/" + piece + ".png"))
+        IMAGES[piece] = pygame.transform.scale(p, (SQUARE_SIZE, SQUARE_SIZE))
 
-for piece in pieces_list:
-    p = pygame.image.load(resource_path("pieces/" + piece + ".png"))
-    IMAGES[piece] = pygame.transform.scale(p, (SQUARE_SIZE, SQUARE_SIZE))
+    # other images
+    c = pygame.image.load(resource_path("pieces/crown.png"))
+    CROWN = pygame.transform.scale(c, (SQUARE_SIZE, SQUARE_SIZE))
 
-c = pygame.image.load(resource_path("pieces/crown.png"))
-CROWN = pygame.transform.scale(c, (SQUARE_SIZE, SQUARE_SIZE))
+    d = pygame.image.load(resource_path("pieces/draw.png"))
+    DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
 
-d = pygame.image.load(resource_path("pieces/draw.png"))
-DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
+except FileNotFoundError as e:
+        print("\033[31mAn error has occured attempting to load some images!")
+        print(f"{e}\033[0m")
 
 # ------------------- DRAWING FUNCTIONS -------------------
 
@@ -401,7 +414,6 @@ def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255)
     surf.blit(base, (outline_width, outline_width))
     surf.set_alpha(alpha)
     return surf
-
 
 exit_surf = text_outline(text="Press ESC to return to the main menu", alpha=150)
 exit_rect: pygame.Rect = exit_surf.get_rect(bottomleft=(10, HEIGHT - 10)) # Bottom-left position
@@ -558,7 +570,6 @@ def draw_outcome(winner: str):
 
     return box
 
-
 def display_outcome(winner: str, screen=screen, flipped: bool=False):
     box = draw_outcome(winner)
 
@@ -619,6 +630,11 @@ def insufmat(board: Board) -> bool:
 
     return False
 
+def request_wait(counter: int) -> bool:
+    if counter > 0:
+        return False
+    counter -= 1
+    return True
 
 def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, simulate=False, ai_move=False, double: bool=False):
     """
@@ -728,7 +744,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
             if not (isinstance(piece, Pawn) and target[0] == 0): # if human didnt move a pawn to the back rank
                 if ai_boost:
-                    move_ai(gamestate, ai_move, double=True)
+                    move_ai(gamestate, double=True) # preform an additional move that doesnt flip the turn so the next move can flip it
                 move_ai(gamestate, ai_move)
                 
             else:
@@ -740,7 +756,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         gamestate.white_turn = not gamestate.white_turn
 
 
-def move_ai(gamestate: GameState, ai_move: bool=False, double: bool=False):
+def move_ai(gamestate: GameState, double: bool=False):
     ai_legs = []
     for row in range(8):
         for col in range(8):
@@ -842,7 +858,10 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
 
     piece = gamestate.board[row][col]
 
-    if gamestate.white_turn and (((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True) or not gamestate.white_turn and (((row,col) == (2,4) or (row,col) == (2,3)) and gamestate.game_over == True): # (5,4) and (5,3) are roughly the squares that the reset button sits on
+    if gamestate.game_over and (
+        (gamestate.white_turn and (row, col) in [(5, 4), (5, 3)]) or
+        (not gamestate.white_turn and (row, col) in [(2, 4), (2, 3)])
+    ): # (5,4) and (5,3) are roughly the squares that the reset button sits on. the other 2 are when the outcome menu is flipped 
         # return all settings to defaults        
         gamestate.reset()
 
@@ -888,7 +907,7 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.promotion_color = None
         gamestate.promotion_click_locations = []
     if ai_glob:
-        move_ai(gamestate=gamestate, ai_move=False)
+        move_ai(gamestate=gamestate)
         gamestate.white_turn = True
         
 # ------------------- MAIN LOOP -------------------
@@ -904,7 +923,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     gamestate.reset()
     running = True  # local running flag
 
-    while running:
+    while running:  
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
