@@ -2,7 +2,7 @@
 # Bowie Luckie
 # @TODO LIST
 
-# Core gameplay DONE!
+# Core gameplay
 # [/] Implement move system (select piece → click destination)
 # [/] Validate moves using get_legal_moves()
 # [/] Switch turns after valid move
@@ -24,7 +24,7 @@
 # UI improvements
 # [/] Highlight legal moves
 # [/] Display check/checkmate message
-# [ ] flip board after each move?
+# [/] flip board after each move?
 
 # code improvements
 # [/] Separate code into modules?
@@ -933,7 +933,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
         rotated = pygame.transform.rotate(screen, 180)
         if not gamestate.white_turn and not ai:
             screen.blit(rotated)
-            
+
         if ai:
             screen.blit(ai_surf, ai_rect)
         screen.blit(exit_surf, exit_rect)
