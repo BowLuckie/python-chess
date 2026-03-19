@@ -40,10 +40,8 @@
 
 # /----------- CODE -----------/
 
-import copy
-import time
-
 import pygame
+import copy
 from types import FunctionType
 from typing import TypeAlias
 from pieces import Piece, Pawn, Knight, Bishop, Rook, Queen, King
@@ -354,7 +352,7 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
+ai_glob: bool = False # if chess.py is "__main__" then this is the default it takes
 ai_boost = True
 
 LIGHT: Color = 230, 210, 170
@@ -437,13 +435,16 @@ def draw_board(screen, highlighted: coordinate | None = None, checked: coordinat
     except:
         return
 
-def draw_pieces(screen, board):
+def draw_pieces(screen, board, flipped: bool=False):
     try: # sometimes quitting the program can not communicate to the drawing functions
         for row in range(8):
             for col in range(8):
                 piece = board[row][col]
-                if piece is not None:
+                if piece is not None and not flipped:
                     screen.blit(IMAGES[piece.image_key()],
+                            (col * SQUARE_SIZE, row * SQUARE_SIZE))
+                elif piece is not None and flipped:
+                    screen.blit(pygame.transform.rotate(IMAGES[piece.image_key()], 180),
                             (col * SQUARE_SIZE, row * SQUARE_SIZE))
     except:
         return
@@ -822,8 +823,8 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
 
 # ------------------- MOUSE CLICK -------------------
 
-def piece_clicked(gamestate: GameState) -> coordinate | None:
-    mouse_x, mouse_y = pygame.mouse.get_pos()
+def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | None:
+    mouse_x, mouse_y = mouse_pos
     row = mouse_y // SQUARE_SIZE
     col = mouse_x // SQUARE_SIZE
     print(row,col)
@@ -857,8 +858,8 @@ def piece_clicked(gamestate: GameState) -> coordinate | None:
     gamestate.legal_moves = []
     return None
 
-def handle_promotion(gamestate: GameState, ai_promoting=False):
-    mouse_x, mouse_y = pygame.mouse.get_pos()
+def handle_promotion(gamestate: GameState, mouse_pos: coordinate, ai_promoting=False):
+    mouse_x, mouse_y = mouse_pos
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
     if (row, col) in gamestate.promotion_click_locations and gamestate.promotion_square is not None:
         options_classes = [Queen, Rook, Bishop, Knight]
@@ -897,10 +898,17 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
             if event.type == pygame.QUIT:
                 running = False
                 return
-            elif gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN: # for some reason, scrolling also trigger this, and i dont know how to fix that
-                handle_promotion(gamestate)
-            elif not gamestate.promotion_active and event.type == pygame.MOUSEBUTTONDOWN:
-                gamestate.selected_square = piece_clicked(gamestate)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = event.pos
+
+                if not gamestate.white_turn:
+                    mx = screen.get_width() - mx
+                    my = screen.get_height() - my
+
+                if gamestate.promotion_active:
+                    handle_promotion(gamestate, (mx, my))
+                else:
+                    gamestate.selected_square = piece_clicked(gamestate, (mx, my))
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     print("escape")
@@ -910,7 +918,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
 
         square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
         draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
-        draw_pieces(screen, gamestate.board)
+        draw_pieces(screen, gamestate.board, flipped=not gamestate.white_turn)
         draw_legal_moves(screen, gamestate.legal_moves)
 
         if gamestate.promotion_active and gamestate.promotion_square:
@@ -921,9 +929,14 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
         if gamestate.game_over and gamestate.winner is not None:
             display_outcome(winner=gamestate.winner)
         
-        screen.blit(exit_surf, exit_rect)
+        
+        rotated = pygame.transform.rotate(screen, 180)
+        if not gamestate.white_turn and not ai:
+            screen.blit(rotated)
+            
         if ai:
             screen.blit(ai_surf, ai_rect)
+        screen.blit(exit_surf, exit_rect)
         pygame.display.flip()
 
     pygame.display.quit()

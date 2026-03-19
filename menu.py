@@ -90,7 +90,7 @@ def main():
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 row, col = (mouse_x//chess.SQUARE_SIZE, mouse_y//chess.SQUARE_SIZE)
 
-                if (row, col) == (0, 7):
+                if (row, col) == (6, 1):
                     ai_boost = not ai_boost
 
             manager.process_events(event)
