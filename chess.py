@@ -559,14 +559,15 @@ def draw_outcome(winner: str):
     return box
 
 
-def display_outcome(winner: str, screen=screen):
+def display_outcome(winner: str, screen=screen, flipped: bool=False):
     box = draw_outcome(winner)
 
     x = WIDTH // 2 - box.get_width() // 2
     y = HEIGHT // 2 - box.get_height() // 2
 
     screen.blit(box, (x, y))
-    
+    if flipped:
+        screen.blit(pygame.transform.rotate(box, 180), (x, y))
 
     return pygame.Rect(x + button.x, y + button.y, button.width, button.height)
 
@@ -669,7 +670,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         direction = -1 if piece.colour == "w" else 1
         gamestate.last_double_pawn = (trow, tcol)
         gamestate.en_passant_square = (trow - direction, tcol)
-        print(gamestate.last_double_pawn, gamestate.en_passant_square)
 
     if isinstance(piece, Pawn) and target == gamestate.en_passant_square and gamestate.last_double_pawn is not None:
         gamestate.board[gamestate.last_double_pawn[0]][gamestate.last_double_pawn[1]] = None
@@ -709,13 +709,16 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         if not enemy_has_move:
             if king_in_check(gamestate, enemy):
                 print("checkmate!")
+                print(gamestate.white_turn)
                 gamestate.game_over = True
                 gamestate.winner = piece.colour
+                return
             else:
                 print("stalemate!")
                 gamestate.game_over = True
                 gamestate.winner = "d"
                 gamestate.draw_type = "stalemate"
+                return
 
         if insufmat(gamestate.board):
             gamestate.winner = "d"
@@ -726,7 +729,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             if not (isinstance(piece, Pawn) and target[0] == 0): # if human didnt move a pawn to the back rank
                 if ai_boost:
                     move_ai(gamestate, ai_move, double=True)
-                    print("boost!")
                 move_ai(gamestate, ai_move)
                 
             else:
@@ -734,7 +736,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate and not double and not (not ai_glob and promotion_move):
-        print("t")
+        print("flip!")
         gamestate.white_turn = not gamestate.white_turn
 
 
@@ -749,7 +751,7 @@ def move_ai(gamestate: GameState, ai_move: bool=False, double: bool=False):
                     if simulate_move(gamestate, move[0], move[1]):
                         ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
     try: 
-        print(ai_chosen_move := choice(ai_legs)) 
+        ai_chosen_move = choice(ai_legs)
         move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
         ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
         if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
@@ -836,7 +838,7 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
 
     piece = gamestate.board[row][col]
 
-    if ((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True: # (5,4) and (5,3) are roughly the squares that the reset button sits on
+    if gamestate.white_turn and (((row,col) == (5,4) or (row,col) == (5,3)) and gamestate.game_over == True) or not gamestate.white_turn and (((row,col) == (2,4) or (row,col) == (2,3)) and gamestate.game_over == True): # (5,4) and (5,3) are roughly the squares that the reset button sits on
         # return all settings to defaults        
         gamestate.reset()
 
@@ -932,7 +934,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
                 display_prom_menu(piece.colour, gamestate.promotion_square)
 
         if gamestate.game_over and gamestate.winner is not None:
-            display_outcome(winner=gamestate.winner)
+            display_outcome(winner=gamestate.winner, flipped=not gamestate.white_turn)
         
         
         rotated = pygame.transform.rotate(screen, 180)
