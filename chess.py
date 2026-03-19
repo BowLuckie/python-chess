@@ -12,7 +12,7 @@
 # [/] En passant
 # [/] Promotion
 # [/] Castling
-# [ ] other draws
+# [/] other draws
 #
 # game rules
 # [/] Check detection
@@ -41,6 +41,7 @@
 # /----------- CODE -----------/
 
 import copy
+import time
 
 import pygame
 from types import FunctionType
@@ -353,7 +354,8 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob = False # if chess.py is "__main__" then this is the default it takes
+ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
+ai_boost = True
 
 LIGHT: Color = 230, 210, 170
 DARK: Color = 184, 135, 98
@@ -614,7 +616,7 @@ def insufmat(board: Board) -> bool:
     return False
 
 
-def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, simulate=False, ai_move=False):
+def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, simulate=False, ai_move=False, double: bool=False):
     """
     Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
     """
@@ -717,17 +719,20 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             gamestate.draw_type = "insufficient material"
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
-            if not (isinstance(piece, Pawn) and target[0] == 0): # if human moved a pawn to the back rank
-                # this is all the ai code, it is actually really simple
+            if not (isinstance(piece, Pawn) and target[0] == 0): # if human didnt move a pawn to the back rank
+                if ai_boost:
+                    move_ai(gamestate, ai_move, double=True)
+                    print("boost!")
                 move_ai(gamestate, ai_move)
+                
             else:
                 return # breaks out of the function
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
-    if not simulate:
+    if not simulate and not double:
         gamestate.white_turn = not gamestate.white_turn
 
-def move_ai(gamestate: GameState, ai_move: bool):
+def move_ai(gamestate: GameState, ai_move: bool=False, double: bool=False):
     ai_legs = []
     for row in range(8):
         for col in range(8):
@@ -739,7 +744,7 @@ def move_ai(gamestate: GameState, ai_move: bool):
                         ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
     try: 
         print(ai_chosen_move := choice(ai_legs)) 
-        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True)
+        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
         ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
         if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
                 gamestate.promotion_active = False
@@ -748,7 +753,8 @@ def move_ai(gamestate: GameState, ai_move: bool):
                 
                 newp = choice(CLASSES_OPTIONS)
                 gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
-    except IndexError:
+
+    except IndexError: # no moves to make
         gamestate.game_over = True
         if king_in_check(gamestate=gamestate, colour="b"):
             gamestate.winner = "w"
@@ -879,9 +885,10 @@ print("\033[33mif you made a new board, add it to BOARDS and json.dump method be
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
-def main(ai: bool | None=ai_glob):
-    global ai_glob
+def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
+    global ai_glob, ai_boost
     ai_glob = ai
+    ai_boost = ai_b
     gamestate.reset()
     running = True  # local running flag
 
