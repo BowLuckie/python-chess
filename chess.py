@@ -770,7 +770,9 @@ def move_ai(gamestate: GameState, ai_move: bool=False, double: bool=False):
             gamestate.winner = "d"
             gamestate.draw_type = "stalemate"
 
-def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState):
+def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState) -> bool:
+    if gamestate.game_over:
+        return False
     for r in range(8):
         for c in range(8):
             piece = gamestate.board[r][c]
@@ -815,6 +817,8 @@ def king_in_check(gamestate: GameState, colour):
 
 def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) -> bool:
     # create a complete copy of the game state
+    if gamestate.game_over:
+        return False
     temp_state = copy.deepcopy(gamestate)
     
     piece = temp_state.board[origin[0]][origin[1]] # capture the piece before it was moved
@@ -916,14 +920,19 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
                     handle_promotion(gamestate, (mx, my))
                 else:
                     gamestate.selected_square = piece_clicked(gamestate, (mx, my))
+                    if gamestate.game_over:
+                        gamestate.selected_square = None
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     print("escape")
                     import menu
                     menu.main()
 
-
         square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+        # make losing king square checked
+        if gamestate.game_over and gamestate.winner is not None:
+            square_in_check = gamestate.white_king_pos if gamestate.winner == "b" else gamestate.black_king_pos
+            
         draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
         draw_pieces(screen, gamestate.board, flipped=not gamestate.white_turn)
         draw_legal_moves(screen, gamestate.legal_moves)
