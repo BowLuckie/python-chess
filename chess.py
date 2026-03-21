@@ -339,7 +339,8 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         try:
             self.white_king_pos, self.black_king_pos = self.find_kings()
         except IndexError:
-            raise KingError(f"Board is missing a king! kings found: white: {self.white_king_pos if hasattr(GameState, "white_king_pos") else None}, black: {self.black_king_pos if hasattr(GameState, "black_king_pos") else None}")
+            raise KingError(f"Board is missing a king! kings found: white: {self.white_king_pos if hasattr(GameState, "white_king_pos") else None}, "
+                            f"black: {self.black_king_pos if hasattr(GameState, "black_king_pos") else None}")
 
         if board_mode == "aipromotion":
             self.black_king_pos = (0,0)
@@ -360,7 +361,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
             for col in range(8):
                 p = self.board[row][col]
 
-                if p is not None and isinstance(p, King):
+                if isinstance(p, King):
                     if p.colour == "w":
                         wk = (row, col)
                     else:
@@ -415,7 +416,6 @@ classics = ["wp", "wr", "wn", "wb", "wq", "wk",
 military = ["ws", "bs"]
 
 pieces_list = classics + military
-print(pieces_list)
 
 try:
     for piece in pieces_list:
@@ -443,11 +443,11 @@ def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255)
     size = (base.get_width() + outline_width*2, base.get_height() + outline_width*2)
     surf = pygame.Surface(size if surf_size is None else (surf_size, surf_size), pygame.SRCALPHA)
 
-    for dx in range(-outline_width, outline_width+1):
-        for dy in range(-outline_width, outline_width+1):
-            if dx != 0 or dy != 0:
+    for dirx in range(-outline_width, outline_width+1):
+        for diry in range(-outline_width, outline_width+1):
+            if dirx != 0 or diry != 0:
                 outline = font.render(text, True, outline_color).convert_alpha()
-                surf.blit(outline, (dx + outline_width, dy + outline_width))
+                surf.blit(outline, (dirx + outline_width, diry + outline_width))
 
     surf.blit(base, (outline_width, outline_width))
     surf.set_alpha(alpha)
@@ -668,12 +668,6 @@ def insufmat(board: Board) -> bool:
 
     return False
 
-def request_wait(counter: int) -> bool:
-    if counter > 0:
-        return False
-    counter -= 1
-    return True
-
 def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, simulate=False, ai_move=False, double: bool=False):
     """
     Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
@@ -762,13 +756,11 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
         if not enemy_has_move:
             if king_in_check(gamestate, enemy):
-                print("checkmate!")
                 print(gamestate.white_turn)
                 gamestate.game_over = True
                 gamestate.winner = piece.colour
                 return
             else:
-                print("stalemate!")
                 gamestate.game_over = True
                 gamestate.winner = "d"
                 gamestate.draw_type = "stalemate"
@@ -790,7 +782,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
     if not simulate and not double and not (not ai_glob and promotion_move):
-        print("flip!")
         gamestate.white_turn = not gamestate.white_turn
 
 
@@ -948,24 +939,12 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         move_ai(gamestate=gamestate)
         gamestate.white_turn = True
         
-# ------------------- MAIN LOOP -------------------
-
-print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
-"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
-print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
-
-def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
-    global ai_glob, ai_boost
-    ai_glob = ai
-    ai_boost = ai_b
-    gamestate.reset()
-    running = True  # local running flag
-
-    while running:  
-        for event in pygame.event.get():
+def event_handling():
+    global running
+    for event in pygame.event.get():
+            
             if event.type == pygame.QUIT:
-                running = False
-                return
+                return False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button != 1:
                     continue # dont excecute the following code if mousebutton is not 1 (left click)
@@ -983,9 +962,26 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
                         gamestate.selected_square = None
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    print("escape")
                     import menu
                     menu.main()
+
+# ------------------- MAIN LOOP -------------------
+
+print("\033[33mif you made a new board, add it to BOARDS and json.dump method below and delete settings.json to rebuild it. " 
+"then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
+print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
+
+def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
+    global ai_glob, ai_boost
+    ai_glob = ai
+    ai_boost = ai_b
+    gamestate.reset()
+    running = True  # local running flag
+
+    while running:  
+        running = event_handling()
+        if running is None:
+            running = True
 
         square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
         # make losing king square checked
