@@ -13,6 +13,9 @@ pygame.display.set_icon(ICON)
 clock: pygame.Clock = pygame.time.Clock()
 restart_requested = False
 
+if "evil_mode" not in chess.settings:
+    chess.settings["evil_mode"] = False
+
 theme_file = chess.resource_path("theme.json")
 manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_file)
 
@@ -42,8 +45,15 @@ back_button = pygame_gui.elements.UIButton(
     manager=manager,
 )
 
+sb = pygame.image.load(chess.resource_path(r"pieces\ws.png"))
+soldier_button = pygame.transform.scale(sb, (chess.SQUARE_SIZE, chess.SQUARE_SIZE))
+
+e = pygame.image.load(chess.resource_path(r"pieces\evil.png"))
+evil_text = pygame.transform.scale(e, (chess.SQUARE_SIZE * 2, chess.SQUARE_SIZE))
+evil_rect = evil_text.get_rect(center=(chess.WIDTH // 2, (chess.HEIGHT // 4) - chess.SQUARE_SIZE))
+
 def main():
-    global restart_requested
+    global restart_requested, evil_mode
     running = True
 
     # Build bg and blur here
@@ -60,6 +70,15 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
                 return
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse = pygame.mouse.get_pos()
+                mx, my = mouse
+
+                if mx // chess.SQUARE_SIZE == 0 and my // chess.SQUARE_SIZE == 7:
+                    print("evil!!")
+                    chess.settings["evil_mode"] = not chess.settings["evil_mode"]
+                    chess.save_settings(chess.settings)
 
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == back_button:
@@ -89,7 +108,12 @@ def main():
 
         screen.blit(blurred)
         screen.blit(settings_text, settings_rect)
+        screen.blit(soldier_button, (0*chess.SQUARE_SIZE,7*chess.SQUARE_SIZE))
         manager.draw_ui(screen)
+
+        if chess.settings.get("evil_mode"):
+            screen.blit(evil_text, evil_rect)
+
         pygame.display.flip()
 
         if restart_requested:

@@ -85,7 +85,8 @@ SETTINGS_FILE = data_path("settings.json", writeable=True)
 
 # Default settings
 DEFAULT_SETTINGS = {
-    "screen_size": 800  # default value
+    "screen_size": 800,  # default value
+    "evil_mode": False
 }
 
 def load_settings() -> dict:
@@ -242,7 +243,7 @@ def test_ai_prom() -> Board:
 
     return board
 
-def military_test_board() -> Board:
+def evil_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 
 # black pieces
@@ -270,7 +271,7 @@ BOARDS: dict[str, FunctionType] = {
 "enpassant": en_passant_test_board,
 "insufficientmat": draw_by_insufmat,
 "aipromotion": test_ai_prom,
-"military": military_test_board,
+"evil": evil_board,
 }
 
 def resource_path(relative_path: str) -> str:
@@ -977,6 +978,11 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     ai_boost = ai_b
     gamestate.reset()
     running = True  # local running flag
+
+    if settings.get("evil_mode"):
+        gamestate.board = (BOARDS.get("evil") or standard_board)()
+        print(BOARDS.get("evil"))
+        print("a sinster board")
 
     while running:  
         running = event_handling()

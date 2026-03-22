@@ -168,7 +168,8 @@ class King(Piece):
     
 class Soldier(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
-        directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
+        d = -1 if self.colour == "w" else 1
+        directions = [(d,-1), (d,0), (d,1)]
         moves = move_helper(board, row, col, directions, self.colour, max_distance=1)
 
         return moves
