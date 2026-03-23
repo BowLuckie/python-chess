@@ -796,7 +796,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             gamestate.draw_type = "insufficient material"
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
-            if not (isinstance(piece, Pawn) and target[0] == 0): # if human didnt move a pawn to the back rank
+            if not ((isinstance(piece, Pawn) or isinstance(piece, Soldier)) and target[0] == 0): # if human didnt move a pawn to the back rank
                 if ai_boost:
                     move_ai(gamestate, double=True) # preform an additional move that doesnt flip the turn so the next move can flip it
                 move_ai(gamestate, ai_move)
