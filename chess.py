@@ -934,12 +934,47 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.promotion_color,
         options_letters[chosen_index])
         gamestate.white_turn = not gamestate.white_turn
+        enemy = "w" if gamestate.promotion_color == "b" else "b"
+        if king_in_check(gamestate, enemy):
+            enemy_has_move = False
+
+            for r in range(8):
+                for c in range(8):
+                    p = gamestate.board[r][c]
+
+                    if p is None or p.colour != enemy: # only picks up pieces of the opposite colour
+                        continue
+
+                    moves = p.get_legal_moves(gamestate.board, r, c, gamestate)
+
+                    for move in moves:
+                        if simulate_move(gamestate, (r, c), move): # if the move is allowed (hence it is a legal move), then the enemy has atleast 1 legal move and we dont have to check anymore moves
+                            enemy_has_move = True
+                            break
+
+                    if enemy_has_move:
+                        break
+                if enemy_has_move:
+                    break
+
+            if not enemy_has_move:
+                if king_in_check(gamestate, enemy):
+                    print(gamestate.white_turn)
+                    gamestate.game_over = True
+                    gamestate.winner = gamestate.promotion_color
+                else:
+                    gamestate.game_over = True
+                    gamestate.winner = "d"
+                    gamestate.draw_type = "stalemate"
+
 
     # reset all the promotion related values
         gamestate.promotion_active = False
         gamestate.promotion_square = None
         gamestate.promotion_color = None
         gamestate.promotion_click_locations = []
+        if gamestate.game_over:
+            return
     if ai_glob:
         move_ai(gamestate=gamestate)
         gamestate.white_turn = True
@@ -986,14 +1021,16 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     if settings.get("evil_mode"):
         gamestate.board = (BOARDS.get("evil") or standard_board)()
         print(BOARDS.get("evil"))
-        print("a sinster board")
 
     while running:  
         running = event_handling()
         if running is None:
             running = True
 
-        square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+        square_in_check = (
+            gamestate.white_king_pos if king_in_check(gamestate, "w") else 
+            gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+            )
         # make losing king square checked
         if gamestate.game_over and gamestate.winner is not None:
             square_in_check = gamestate.white_king_pos if gamestate.winner == "b" else gamestate.black_king_pos
@@ -1006,6 +1043,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
             piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
             if piece is not None:
                 display_prom_menu(piece.colour, gamestate.promotion_square)
+                
 
         if gamestate.game_over and gamestate.winner is not None:
             display_outcome(winner=gamestate.winner, flipped=not gamestate.white_turn)
