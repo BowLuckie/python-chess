@@ -61,6 +61,7 @@ from pieces import (
     Soldier,
     Elephant,
     Dog,
+    Vampire,
 )
 
 # ----------- DATA/SETUP -----------
@@ -252,16 +253,16 @@ def evil_board() -> Board:
 
 # black pieces
     board[0] = [
-    Elephant("b", "E"), Dog("b", "H"), Bishop("b", "B"), Queen("b", "Q"),
-    King("b", "K"), Bishop("b", "B"), Dog("b", "H"), Elephant("b", "E")
+    Elephant("b", "E"), Dog("b", "H"), Bishop("b", "B"), Vampire("b", "V"),
+    King("b", "D"), Bishop("b", "B"), Dog("b", "H"), Elephant("b", "E")
 ]
     board[1] = [Soldier("b", "s") for _ in range(8)]
 
 # white pieces
     board[6] = [Soldier("w", "s") for _ in range(8)]
     board[7] = [
-    Elephant("w", "E"), Dog("w", "H"), Bishop("w", "B"), Queen("w", "Q"),
-    King("w", "K"), Bishop("w", "B"), Dog("w", "H"), Elephant("w", "E")
+    Elephant("w", "E"), Dog("w", "H"), Bishop("w", "B"), Vampire("w", "V"),
+    King("w", "D"), Bishop("w", "B"), Dog("w", "H"), Elephant("w", "E")
 ]
     return board
 
@@ -354,6 +355,8 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.last_double_pawn: coordinate | None = None
         self.en_passant_square: coordinate | None = None
 
+        self.evil_mode: bool = settings.get("evil_mode", False)
+
         self.game_over: bool = False
         self.winner: str | None = None
         self.draw_type: str | None = None
@@ -418,9 +421,11 @@ IMAGES = {}
 original = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk",]
 
-evil = ["ws", "we", "wh", "bh", "bs", "be"]
+evil = ["ws", "we", "wh", "wd", "wv", "wv", "bv", "bd", "bh", "bs", "be"]
 
-pieces_list = original + evil
+custom = []
+
+pieces_list = original + evil + custom
 
 try:
     for piece in pieces_list:
@@ -502,7 +507,7 @@ def draw_pieces(screen, board, flipped: bool=False):
                     screen.blit(pygame.transform.rotate(IMAGES[piece.image_key()], 180),
                             (col * SQUARE_SIZE, row * SQUARE_SIZE))
     except KeyError as e:
-        print("\033[31mAn error has occured attempting to load some images! if you made a custom piece make sure it add it to image_pieces[]")
+        print("\033[31mAn error has occured attempting to load some images! if you made a custom piece make sure it add it to custom[]")
         print(f"{e}\033[0m")
         return
 
@@ -764,7 +769,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
         if not enemy_has_move:
             if king_in_check(gamestate, enemy):
-                print(gamestate.white_turn)
                 gamestate.game_over = True
                 gamestate.winner = piece.colour
                 return
@@ -998,7 +1002,6 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
 
             if not enemy_has_move:
                 if king_in_check(gamestate, enemy):
-                    print(gamestate.white_turn)
                     gamestate.game_over = True
                     gamestate.winner = gamestate.promotion_color
                 else:
@@ -1057,7 +1060,6 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
 
     if settings.get("evil_mode"):
         gamestate.board = (BOARDS.get("evil") or standard_board)()
-        print(BOARDS.get("evil"))
 
     while running:  
         running = event_handling()

@@ -13,6 +13,7 @@
 
 from typing import TypeAlias
 from typing import TYPE_CHECKING
+from pygame import error
 
 if TYPE_CHECKING:
     from chess import GameState # only when the interpreter is type checking, not at runtime
@@ -21,18 +22,23 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False) -> list[coordinate]:
-    moves: list[coordinate] = []
+def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False, self_captures=False) -> list[tuple[int, int]]:
+    moves: list[tuple[int, int]] = []
 
     for drow, dcol in directions:
         trow, tcol = row + drow, col + dcol
         distance = 0
+
         while 0 <= trow < 8 and 0 <= tcol < 8 and distance < max_distance:
             target = board[trow][tcol]
 
             if target is None:
                 moves.append((trow, tcol))
-            elif target.colour != colour and capture:
+            elif self_captures and target is not None:
+                moves.append((trow, tcol))
+                if not jump:
+                    break
+            elif capture and target.colour != colour:
                 moves.append((trow, tcol))
                 if not jump:
                     break
@@ -43,7 +49,9 @@ def move_helper(board, row, col, directions, colour, max_distance=8, capture=Tru
             trow += drow
             tcol += dcol
             distance += 1
+
     return moves
+
 
 class Piece:
     def __init__(self, colour: str, name: str, has_moved: bool=False):
@@ -130,7 +138,7 @@ class Rook(Piece):
 class Queen(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        return move_helper(board, row, col, directions, self.colour)
+        return move_helper(board, row, col, directions, self.colour, max_distance=8)
 
 
 class King(Piece):  
@@ -165,7 +173,8 @@ class King(Piece):
                     moves.append((row, 6))
 
         # Normal king moves
-        moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
+        print(gamestate.evil_mode)
+        moves += move_helper(board, row, col, directions, self.colour, max_distance=1, self_captures=gamestate.evil_mode)
 
         return moves
     
@@ -208,8 +217,19 @@ class Dog(Piece):
         moves = [m for i,m in enumerate(moves) if i%2==0]
         return moves
 
-    
-if __name__ == '__main__':
-    import chess
-    chess.main()
+class Vampire(Piece):
+    def get_legal_moves(self, board, row, col, gamestate):
+        moves = []
+        direction = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
+        moves += move_helper(board, row, col, direction, self.colour, capture=False)
+        moves += move_helper(board, row, col, direction, self.colour, max_distance=1, capture=True)
+        return moves
+
+if __name__ == "__main__":
+    try:
+        import chess
+        chess.main()
+    except error as e:
+        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+            print(e)
     
