@@ -15,3 +15,7 @@ it is recomended to use the .exe instead as you dont need any prerequisites
 ```
 python -m PyInstaller --onedir --windowed --name PLACE-VERSION-NAME-HERE --hidden-import=pygame.transform --collect-data pygame --add-data "pieces;pieces" --add-data "theme.json;." menu.py
 ```
+
+# DLC coming soon
+
+![poster](https://github.com/BowLuckie/python-chess/blob/a12e1c7284e39ad0a05c93da125628749568be96/pieces/instructions/sinister%20edition%20promotion%20poster.png)

@@ -21,17 +21,18 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, colour, max_distance=8) -> list[coordinate]:
+def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False) -> list[coordinate]:
     moves: list[coordinate] = []
+
     for drow, dcol in directions:
         trow, tcol = row + drow, col + dcol
         distance = 0
         while 0 <= trow < 8 and 0 <= tcol < 8 and distance < max_distance:
-            target: Piece | None = board[trow][tcol]
+            target = board[trow][tcol]
 
             if target is None:
                 moves.append((trow, tcol))
-            elif target.colour != colour:
+            elif target.colour != colour and capture:
                 moves.append((trow, tcol))
                 break
             else:
@@ -168,11 +169,44 @@ class King(Piece):
     
 class Soldier(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
-        directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        moves = move_helper(board, row, col, directions, self.colour, max_distance=1)
+        d = -1 if self.colour == "w" else 1
+        directions = [(d,-1), (d,0), (d,1)]
+        if (row == 6 and self.colour == "w") or (row == 1 and self.colour == "b"):
+            moves = move_helper(board, row, col, [(d,0)], self.colour, max_distance=2)
+            moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
+            moves = list(set(moves))
+        else:
+            moves = move_helper(board, row, col, directions, self.colour, max_distance=1)
 
         return moves
         
+class Elephant(Piece):
+    def get_legal_moves(self, board, row, col, gamestate):
+        moves: list[coordinate] = []
+        directions = [(1,0), (-1,0), (0, 1), (0,-1)]
+        moves += move_helper(board, row, col, directions, self.colour, capture=False)
+        offsets = [
+            (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+            (1, -2), (1, 2), (2, -1), (2, 1)
+        ]
+
+        for dr, dc in offsets:
+            r, c = row + dr, col + dc
+            if 0 <= r < 8 and 0 <= c < 8:
+                target: Piece | None = board[r][c]
+                if target is not None and target.colour != self.colour:
+                    moves.append((r, c))
+
+        return moves
+    
+class Dog(Piece):
+    def get_legal_moves(self, board, row, col, gamestate):
+        directions = [(1,0), (-1,0), (0, 1), (0,-1)]
+        moves = move_helper(board, row, col, directions, self.colour, max_distance=6, jump=True)
+        moves = [m for i,m in enumerate(moves) if i+1%2==0] # keep move if its index is even starting at 1
+        return moves
+
+    
 if __name__ == '__main__':
     # --- ai generated code ---
     # when this module is executed as a script, delegate to the

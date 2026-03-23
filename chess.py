@@ -59,6 +59,8 @@ from pieces import (
     
     # others
     Soldier,
+    Elephant,
+    Dog,
 )
 
 # ----------- DATA/SETUP -----------
@@ -85,7 +87,8 @@ SETTINGS_FILE = data_path("settings.json", writeable=True)
 
 # Default settings
 DEFAULT_SETTINGS = {
-    "screen_size": 800  # default value
+    "screen_size": 800,  # default value
+    "evil_mode": False
 }
 
 def load_settings() -> dict:
@@ -182,7 +185,7 @@ def checkmate_test_board() -> Board:
 
     # White pieces delivering mate
     board[7][4] = King("w", "K")      # e1 (safe king)
-    board[7][7] = Rook("w", "R")      # h1
+    board[1][7] = Pawn("w", "P")      # h1
 
     return board
 
@@ -244,21 +247,21 @@ def test_ai_prom() -> Board:
 
     return board
 
-def military_test_board() -> Board:
+def evil_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 
 # black pieces
     board[0] = [
-    Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
-    King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
+    Elephant("b", "E"), Dog("b", "H"), Bishop("b", "B"), Queen("b", "Q"),
+    King("b", "K"), Bishop("b", "B"), Dog("b", "H"), Elephant("b", "E")
 ]
     board[1] = [Soldier("b", "s") for _ in range(8)]
 
 # white pieces
     board[6] = [Soldier("w", "s") for _ in range(8)]
     board[7] = [
-    Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
-    King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
+    Elephant("w", "E"), Dog("w", "H"), Bishop("w", "B"), Queen("w", "Q"),
+    King("w", "K"), Bishop("w", "B"), Dog("w", "H"), Elephant("w", "E")
 ]
     return board
 
@@ -272,7 +275,7 @@ BOARDS: dict[str, FunctionType] = {
 "enpassant": en_passant_test_board,
 "insufficientmat": draw_by_insufmat,
 "aipromotion": test_ai_prom,
-"military": military_test_board,
+"evil": evil_board,
 }
 
 def resource_path(relative_path: str) -> str:
@@ -393,7 +396,7 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob: bool = False # if chess.py is "__main__" then this is the default it takes
+ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
 ai_boost = False
 
 LIGHT: Color = 230, 210, 170
@@ -412,12 +415,12 @@ CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
 
 IMAGES = {}
 
-classics = ["wp", "wr", "wn", "wb", "wq", "wk",
-            "bp", "br", "bn", "bb", "bq", "bk"]
+original = ["wp", "wr", "wn", "wb", "wq", "wk",
+            "bp", "br", "bn", "bb", "bq", "bk",]
 
-military = ["ws", "bs"]
+evil = ["ws", "we", "wh", "bh", "bs", "be"]
 
-pieces_list = classics + military
+pieces_list = original + evil
 
 try:
     for piece in pieces_list:
@@ -498,7 +501,9 @@ def draw_pieces(screen, board, flipped: bool=False):
                 elif piece is not None and flipped:
                     screen.blit(pygame.transform.rotate(IMAGES[piece.image_key()], 180),
                             (col * SQUARE_SIZE, row * SQUARE_SIZE))
-    except:
+    except KeyError as e:
+        print("\033[31mAn error has occured attempting to load some images! if you made a custom piece make sure it add it to image_pieces[]")
+        print(f"{e}\033[0m")
         return
 
 def draw_legal_moves(screen, moves: list[coordinate]):
@@ -634,7 +639,7 @@ def build_bg() -> pygame.Surface:
 
 # ------------------- LOGIC -------------------
 
-def insufmat(board: Board) -> bool:
+def insufficient_mat(board: Board) -> bool:
     white_pieces: list[tuple[Piece, tuple[int,int]]] = []
     black_pieces: list[tuple[Piece, tuple[int,int]]] = []
 
@@ -686,6 +691,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
     # if (trow, tcol) == gamestate.en_passant_square
     promotion_move = False
+
     # promotion
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
         promotion_move = True
@@ -768,7 +774,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 gamestate.draw_type = "stalemate"
                 return
 
-        if insufmat(gamestate.board):
+        if insufficient_mat(gamestate.board):
             gamestate.winner = "d"
             gamestate.game_over = True
             gamestate.draw_type = "insufficient material"
@@ -787,29 +793,65 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         gamestate.white_turn = not gamestate.white_turn
 
 
+PIECE_VALUES = {
+    Pawn: 1,
+    Knight: 3,
+    Bishop: 3,
+    Rook: 5,
+    Queen: 9,
+    King: 100
+}
+
 def move_ai(gamestate: GameState, double: bool=False):
     ai_legs = []
+    best_score = -float("inf")
+    best_moves = []
+
     for row in range(8):
         for col in range(8):
             p = gamestate.board[row][col]
             if p is not None and p.colour == "b":
                 for cord in p.get_legal_moves(gamestate.board, row, col, gamestate):
                     move = ((row, col), cord)
-                    if simulate_move(gamestate, move[0], move[1]):
-                        ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
-    try: 
-        ai_chosen_move = choice(ai_legs)
-        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
-        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
-        if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
-                gamestate.promotion_active = False
-                gamestate.promotion_square = None
-                gamestate.promotion_color = None
-                
-                newp = choice(CLASSES_OPTIONS)
-                gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
 
-    except IndexError: # no moves to make
+                    if simulate_move(gamestate, move[0], move[1]):
+                        ai_legs.append(move)
+
+                        target_piece = gamestate.board[cord[0]][cord[1]]
+
+                        score = 0
+                        if target_piece is not None:
+                            # prefer higher-value captures
+                            score = PIECE_VALUES.get(type(target_piece), 0)
+
+                            # optional: avoid bad trades
+                            score -= PIECE_VALUES.get(type(p), 0)
+
+                        if score > best_score:
+                            best_score = score
+                            best_moves = [move]
+                        elif score == best_score:
+                            best_moves.append(move)
+
+    try:
+        # pick best move if exists, otherwise random legal move
+        ai_chosen_move = choice(best_moves if best_moves else ai_legs)
+
+        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
+
+        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
+
+        # handle promotion
+        if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
+            gamestate.promotion_active = False
+            gamestate.promotion_square = None
+            gamestate.promotion_color = None
+
+            newp = choice(CLASSES_OPTIONS)
+            gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
+
+    except IndexError:
+        # no moves available
         gamestate.game_over = True
         if king_in_check(gamestate=gamestate, colour="b"):
             gamestate.winner = "w"
@@ -931,12 +973,47 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.promotion_color,
         options_letters[chosen_index])
         gamestate.white_turn = not gamestate.white_turn
+        enemy = "w" if gamestate.promotion_color == "b" else "b"
+        if king_in_check(gamestate, enemy):
+            enemy_has_move = False
+
+            for r in range(8):
+                for c in range(8):
+                    p = gamestate.board[r][c]
+
+                    if p is None or p.colour != enemy: # only picks up pieces of the opposite colour
+                        continue
+
+                    moves = p.get_legal_moves(gamestate.board, r, c, gamestate)
+
+                    for move in moves:
+                        if simulate_move(gamestate, (r, c), move): # if the move is allowed (hence it is a legal move), then the enemy has atleast 1 legal move and we dont have to check anymore moves
+                            enemy_has_move = True
+                            break
+
+                    if enemy_has_move:
+                        break
+                if enemy_has_move:
+                    break
+
+            if not enemy_has_move:
+                if king_in_check(gamestate, enemy):
+                    print(gamestate.white_turn)
+                    gamestate.game_over = True
+                    gamestate.winner = gamestate.promotion_color
+                else:
+                    gamestate.game_over = True
+                    gamestate.winner = "d"
+                    gamestate.draw_type = "stalemate"
+
 
     # reset all the promotion related values
         gamestate.promotion_active = False
         gamestate.promotion_square = None
         gamestate.promotion_color = None
         gamestate.promotion_click_locations = []
+        if gamestate.game_over:
+            return
     if ai_glob:
         move_ai(gamestate=gamestate)
         gamestate.white_turn = True
@@ -978,12 +1055,19 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     gamestate.reset()
     running = True  # local running flag
 
+    if settings.get("evil_mode"):
+        gamestate.board = (BOARDS.get("evil") or standard_board)()
+        print(BOARDS.get("evil"))
+
     while running:  
         running = event_handling()
         if running is None:
             running = True
 
-        square_in_check = gamestate.white_king_pos if king_in_check(gamestate, "w") else gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+        square_in_check = (
+            gamestate.white_king_pos if king_in_check(gamestate, "w") else 
+            gamestate.black_king_pos if king_in_check(gamestate, "b") else None
+            )
         # make losing king square checked
         if gamestate.game_over and gamestate.winner is not None:
             square_in_check = gamestate.white_king_pos if gamestate.winner == "b" else gamestate.black_king_pos
@@ -996,6 +1080,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
             piece = gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]]
             if piece is not None:
                 display_prom_menu(piece.colour, gamestate.promotion_square)
+                
 
         if gamestate.game_over and gamestate.winner is not None:
             display_outcome(winner=gamestate.winner, flipped=not gamestate.white_turn)

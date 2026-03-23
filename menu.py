@@ -110,6 +110,10 @@ def main():
             screen.blit(ai_text, ai_rect)
 
         manager.draw_ui(screen)
+
+        if chess.settings.get("evil_mode"):
+            screen.blit(settings.evil_text, settings.evil_rect)
+
         pygame.display.flip()
 
     pygame.display.quit()
