@@ -412,8 +412,10 @@ CHECKED_DARK: Color = 225, 105, 84
 
 COLOURS: list[Color] = [LIGHT, DARK] 
 
-OPTIONS: list[str] = ["Q", "R", "B", "N"]
 CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
+if gamestate.evil_mode:
+    CLASSES_OPTIONS = [(Vampire, "V"), (Elephant, "E"), (Planet, "C"), (Dog, "H")]
+OPTIONS = [n for _, n in CLASSES_OPTIONS]
 
 # ------------------- LOAD PIECE IMAGES -------------------
 
@@ -708,7 +710,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
     promotion_move = False
 
     # promotion
-    if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
+    if (isinstance(piece, Pawn) or isinstance(piece, Soldier)) and (trow == 7 or trow == 0) and not simulate:
         promotion_move = True
         gamestate.promotion_active = True
         gamestate.promotion_square = (trow, tcol)
@@ -984,8 +986,8 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
     mouse_x, mouse_y = mouse_pos
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
     if (row, col) in gamestate.promotion_click_locations and gamestate.promotion_square is not None:
-        options_classes = [Queen, Rook, Bishop, Knight]
-        options_letters = ["Q", "R", "B", "N"]  # must match the image keys
+        options_classes = [p for p, _ in CLASSES_OPTIONS]
+        options_letters = [n for _, n in CLASSES_OPTIONS]  # must match the image keys
 
         chosen_index = row - gamestate.promotion_click_locations[0][0]
         gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]] = options_classes[chosen_index](
