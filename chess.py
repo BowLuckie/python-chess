@@ -60,6 +60,7 @@ from pieces import (
     # others
     Soldier,
     Elephant,
+    Dog,
 )
 
 # ----------- DATA/SETUP -----------
@@ -249,16 +250,16 @@ def evil_board() -> Board:
 
 # black pieces
     board[0] = [
-    Elephant("b", "E"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
-    King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Elephant("b", "E")
+    Elephant("b", "E"), Dog("b", "H"), Bishop("b", "B"), Queen("b", "Q"),
+    King("b", "K"), Bishop("b", "B"), Dog("b", "H"), Elephant("b", "E")
 ]
     board[1] = [Soldier("b", "s") for _ in range(8)]
 
 # white pieces
     board[6] = [Soldier("w", "s") for _ in range(8)]
     board[7] = [
-    Elephant("w", "E"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
-    King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Elephant("w", "E")
+    Elephant("w", "E"), Dog("w", "H"), Bishop("w", "B"), Queen("w", "Q"),
+    King("w", "K"), Bishop("w", "B"), Dog("w", "H"), Elephant("w", "E")
 ]
     return board
 
@@ -393,7 +394,7 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob: bool = False # if chess.py is "__main__" then this is the default it takes
+ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
 ai_boost = False
 
 LIGHT: Color = 230, 210, 170
@@ -412,12 +413,12 @@ CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
 
 IMAGES = {}
 
-classics = ["wp", "wr", "wn", "wb", "wq", "wk",
+original = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk",]
 
-military = ["ws", "we", "bs", "be"]
+evil = ["ws", "we", "wh", "bh", "bs", "be"]
 
-pieces_list = classics + military
+pieces_list = original + evil
 
 try:
     for piece in pieces_list:
@@ -790,29 +791,65 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         gamestate.white_turn = not gamestate.white_turn
 
 
+PIECE_VALUES = {
+    Pawn: 1,
+    Knight: 3,
+    Bishop: 3,
+    Rook: 5,
+    Queen: 9,
+    King: 100
+}
+
 def move_ai(gamestate: GameState, double: bool=False):
     ai_legs = []
+    best_score = -float("inf")
+    best_moves = []
+
     for row in range(8):
         for col in range(8):
             p = gamestate.board[row][col]
             if p is not None and p.colour == "b":
                 for cord in p.get_legal_moves(gamestate.board, row, col, gamestate):
                     move = ((row, col), cord)
-                    if simulate_move(gamestate, move[0], move[1]):
-                        ai_legs.append(move) # if the move is allowed in the simulation, append it to ai's legal moves. move is structured like ((origin),(target))
-    try: 
-        ai_chosen_move = choice(ai_legs)
-        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
-        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
-        if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
-                gamestate.promotion_active = False
-                gamestate.promotion_square = None
-                gamestate.promotion_color = None
-                
-                newp = choice(CLASSES_OPTIONS)
-                gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
 
-    except IndexError: # no moves to make
+                    if simulate_move(gamestate, move[0], move[1]):
+                        ai_legs.append(move)
+
+                        target_piece = gamestate.board[cord[0]][cord[1]]
+
+                        score = 0
+                        if target_piece is not None:
+                            # prefer higher-value captures
+                            score = PIECE_VALUES.get(type(target_piece), 0)
+
+                            # optional: avoid bad trades
+                            score -= PIECE_VALUES.get(type(p), 0)
+
+                        if score > best_score:
+                            best_score = score
+                            best_moves = [move]
+                        elif score == best_score:
+                            best_moves.append(move)
+
+    try:
+        # pick best move if exists, otherwise random legal move
+        ai_chosen_move = choice(best_moves if best_moves else ai_legs)
+
+        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
+
+        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
+
+        # handle promotion
+        if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
+            gamestate.promotion_active = False
+            gamestate.promotion_square = None
+            gamestate.promotion_color = None
+
+            newp = choice(CLASSES_OPTIONS)
+            gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
+
+    except IndexError:
+        # no moves available
         gamestate.game_over = True
         if king_in_check(gamestate=gamestate, colour="b"):
             gamestate.winner = "w"
