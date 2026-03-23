@@ -34,9 +34,11 @@ def move_helper(board, row, col, directions, colour, max_distance=8, capture=Tru
                 moves.append((trow, tcol))
             elif target.colour != colour and capture:
                 moves.append((trow, tcol))
-                break
+                if not jump:
+                    break
             else:
-                break
+                if not jump:
+                    break
 
             trow += drow
             tcol += dcol
@@ -203,22 +205,11 @@ class Dog(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
         moves = move_helper(board, row, col, directions, self.colour, max_distance=6, jump=True)
-        moves = [m for i,m in enumerate(moves) if i+1%2==0] # keep move if its index is even starting at 1
+        moves = [m for i,m in enumerate(moves) if i%2==0]
         return moves
 
     
 if __name__ == '__main__':
-    # --- ai generated code ---
-    # when this module is executed as a script, delegate to the
-    # main chess program instead of trying to import the pieces again.
-    # we use subprocess to avoid creating a circular import: chess.py
-    # already imports this module at the top level.
-    import subprocess, sys, os
-
-    # figure out the path to the chess script relative to this file
-    script_dir = os.path.dirname(__file__)
-    chess_path = os.path.join(script_dir, 'chess.py')
-
-    # run the chess program with the same interpreter
-    subprocess.run([sys.executable, chess_path])
+    import chess
+    chess.main()
     
