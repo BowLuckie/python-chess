@@ -211,16 +211,34 @@ class Elephant(Piece):
                 if target is not None and target.colour != self.colour:
                     moves.append((r, c))
 
-        return moves
+        return list(set((moves)))
     
 class Dog(Piece):
     # moves like a rook but jumps over every second square
     def get_legal_moves(self, board, row, col, gamestate):
-        directions = [(1,0), (-1,0), (0, 1), (0,-1)]
-        moves = move_helper(board, row, col, directions, self.colour, max_distance=6, jump=True)
-        moves = [m for i,m in enumerate(moves) if i%2==0]
-        return moves
+        directions = [(1,0), (-1,0), (0,1), (0,-1)]
+        moves: list[tuple[int, int]] = []
 
+        for drow, dcol in directions:
+            trow, tcol = row + drow, col + dcol
+            distance = 0
+            while 0 <= trow < 8 and 0 <= tcol < 8 and distance < 4:
+                target = board[trow][tcol]
+
+                # Only add every second square
+                if distance % 2 == 1:
+                    if target is None or target.colour != self.colour:
+                        moves.append((trow, tcol))
+                    else:
+                        break  # can't land on own piece
+
+                # Always jump over intermediate squares
+                trow += drow
+                tcol += dcol
+                distance += 1
+
+        return moves
+    
 class Vampire(Piece):
     # moves like a queen but can only capture like a king
     def get_legal_moves(self, board, row, col, gamestate):
@@ -228,7 +246,7 @@ class Vampire(Piece):
         direction = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         moves += move_helper(board, row, col, direction, self.colour, capture=False)
         moves += move_helper(board, row, col, direction, self.colour, max_distance=1, capture=True)
-        return moves
+        return list(set((moves)))
     
 class Planet(Piece):
     # moves like a horse but jumps directly diagonally

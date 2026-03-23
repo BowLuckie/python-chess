@@ -813,6 +813,11 @@ PIECE_VALUES = {
     Bishop: 3,
     Rook: 5,
     Queen: 9,
+    Soldier: 2,
+    Elephant: 3.5,
+    Dog: 4,
+    Vampire: 5,
+    Planet: 2.5,
     King: 100
 }
 
