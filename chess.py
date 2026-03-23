@@ -59,6 +59,7 @@ from pieces import (
     
     # others
     Soldier,
+    Elephant,
 )
 
 # ----------- DATA/SETUP -----------
@@ -181,7 +182,7 @@ def checkmate_test_board() -> Board:
 
     # White pieces delivering mate
     board[7][4] = King("w", "K")      # e1 (safe king)
-    board[7][7] = Rook("w", "R")      # h1
+    board[1][7] = Pawn("w", "P")      # h1
 
     return board
 
@@ -248,16 +249,16 @@ def evil_board() -> Board:
 
 # black pieces
     board[0] = [
-    Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
-    King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
+    Elephant("b", "E"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
+    King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Elephant("b", "E")
 ]
     board[1] = [Soldier("b", "s") for _ in range(8)]
 
 # white pieces
     board[6] = [Soldier("w", "s") for _ in range(8)]
     board[7] = [
-    Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
-    King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Rook("w", "R")
+    Elephant("w", "E"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
+    King("w", "K"), Bishop("w", "B"), Knight("w", "N"), Elephant("w", "E")
 ]
     return board
 
@@ -412,9 +413,9 @@ CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
 IMAGES = {}
 
 classics = ["wp", "wr", "wn", "wb", "wq", "wk",
-            "bp", "br", "bn", "bb", "bq", "bk"]
+            "bp", "br", "bn", "bb", "bq", "bk",]
 
-military = ["ws", "bs"]
+military = ["ws", "we", "bs", "be"]
 
 pieces_list = classics + military
 
@@ -497,7 +498,9 @@ def draw_pieces(screen, board, flipped: bool=False):
                 elif piece is not None and flipped:
                     screen.blit(pygame.transform.rotate(IMAGES[piece.image_key()], 180),
                             (col * SQUARE_SIZE, row * SQUARE_SIZE))
-    except:
+    except KeyError as e:
+        print("\033[31mAn error has occured attempting to load some images! if you made a custom piece make sure it add it to image_pieces[]")
+        print(f"{e}\033[0m")
         return
 
 def draw_legal_moves(screen, moves: list[coordinate]):
@@ -633,7 +636,7 @@ def build_bg() -> pygame.Surface:
 
 # ------------------- LOGIC -------------------
 
-def insufmat(board: Board) -> bool:
+def insufficient_mat(board: Board) -> bool:
     white_pieces: list[tuple[Piece, tuple[int,int]]] = []
     black_pieces: list[tuple[Piece, tuple[int,int]]] = []
 
@@ -685,6 +688,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
     # if (trow, tcol) == gamestate.en_passant_square
     promotion_move = False
+
     # promotion
     if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
         promotion_move = True
@@ -767,7 +771,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 gamestate.draw_type = "stalemate"
                 return
 
-        if insufmat(gamestate.board):
+        if insufficient_mat(gamestate.board):
             gamestate.winner = "d"
             gamestate.game_over = True
             gamestate.draw_type = "insufficient material"

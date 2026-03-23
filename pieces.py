@@ -21,7 +21,7 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, colour, max_distance=8) -> list[coordinate]:
+def move_helper(board, row, col, directions, colour, max_distance=8, capture=True) -> list[coordinate]:
     moves: list[coordinate] = []
     for drow, dcol in directions:
         trow, tcol = row + drow, col + dcol
@@ -31,7 +31,7 @@ def move_helper(board, row, col, directions, colour, max_distance=8) -> list[coo
 
             if target is None:
                 moves.append((trow, tcol))
-            elif target.colour != colour:
+            elif target.colour != colour and capture:
                 moves.append((trow, tcol))
                 break
             else:
@@ -174,6 +174,25 @@ class Soldier(Piece):
 
         return moves
         
+class Elephant(Piece):
+    def get_legal_moves(self, board, row, col, gamestate):
+        moves: list[coordinate] = []
+        directions = [(1,0), (-1,0), (0, 1), (0,-1)]
+        moves += move_helper(board, row, col, directions, self.colour, capture=False)
+        offsets = [
+            (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+            (1, -2), (1, 2), (2, -1), (2, 1)
+        ]
+
+        for dr, dc in offsets:
+            r, c = row + dr, col + dc
+            if 0 <= r < 8 and 0 <= c < 8:
+                target: Piece | None = board[r][c]
+                if target is not None and target.colour != self.colour:
+                    moves.append((r, c))
+
+        return moves
+    
 if __name__ == '__main__':
     # --- ai generated code ---
     # when this module is executed as a script, delegate to the
