@@ -109,6 +109,8 @@ class KingError(Exception):
     """
     pass
 
+LEFTCLICK = 1
+
 # ------------------- BOARD SETUP -------------------
 
 # each board is a function that returns a Board type, which is just an alias for list[list[None | Piece]], so each square will either have a Piece class or a None.
@@ -520,7 +522,7 @@ def draw_promotion(colour):
     for i, piece_name in enumerate(OPTIONS):
         prom_menu_img = IMAGES[colour.lower() + piece_name.lower()]
         if not gamestate.white_turn:
-            prom_menu_img = pygame.transform.rotate(prom_menu_img, 180)
+            prom_menu_img = pygame.transform.rotate(prom_menu_img, 180) # flip promotion options because they are their own surface
         menu.blit(prom_menu_img, (0, i * SQUARE_SIZE))
     return menu
 
@@ -945,9 +947,7 @@ def event_handling():
             
             if event.type == pygame.QUIT:
                 return False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button != 1:
-                    continue # dont excecute the following code if mousebutton is not 1 (left click)
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == LEFTCLICK:
                 mx, my = event.pos
 
                 if not gamestate.white_turn:
@@ -962,7 +962,7 @@ def event_handling():
                         gamestate.selected_square = None
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    import menu
+                    import menu # import menu at this scope to avoid circular import
                     menu.main()
 
 # ------------------- MAIN LOOP -------------------
@@ -1002,7 +1002,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
         
         
         rotated = pygame.transform.rotate(screen, 180)
-        if not gamestate.white_turn and not ai:
+        if not gamestate.white_turn and not ai: # rotate the screen if its blacks turn (some elements are unaffected)
             screen.blit(rotated)
 
         if ai:
