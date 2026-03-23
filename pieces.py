@@ -13,6 +13,7 @@
 
 from typing import TypeAlias
 from typing import TYPE_CHECKING
+from pygame import error
 
 if TYPE_CHECKING:
     from chess import GameState # only when the interpreter is type checking, not at runtime
@@ -21,27 +22,36 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False) -> list[coordinate]:
-    moves: list[coordinate] = []
+def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False, self_captures=False) -> list[tuple[int, int]]:
+    moves: list[tuple[int, int]] = []
 
     for drow, dcol in directions:
         trow, tcol = row + drow, col + dcol
         distance = 0
+
         while 0 <= trow < 8 and 0 <= tcol < 8 and distance < max_distance:
             target = board[trow][tcol]
 
             if target is None:
                 moves.append((trow, tcol))
-            elif target.colour != colour and capture:
+            elif self_captures and target is not None:
                 moves.append((trow, tcol))
-                break
+                if not jump:
+                    break
+            elif capture and target.colour != colour:
+                moves.append((trow, tcol))
+                if not jump:
+                    break
             else:
-                break
+                if not jump:
+                    break
 
             trow += drow
             tcol += dcol
             distance += 1
+
     return moves
+
 
 class Piece:
     def __init__(self, colour: str, name: str, has_moved: bool=False):
@@ -128,7 +138,7 @@ class Rook(Piece):
 class Queen(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        return move_helper(board, row, col, directions, self.colour)
+        return move_helper(board, row, col, directions, self.colour, max_distance=8)
 
 
 class King(Piece):  
@@ -163,11 +173,13 @@ class King(Piece):
                     moves.append((row, 6))
 
         # Normal king moves
-        moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
+        print(gamestate.evil_mode)
+        moves += move_helper(board, row, col, directions, self.colour, max_distance=1, self_captures=gamestate.evil_mode)
 
         return moves
     
 class Soldier(Piece):
+    # moves like a pawn but has no capture restrictions
     def get_legal_moves(self, board, row, col, gamestate):
         d = -1 if self.colour == "w" else 1
         directions = [(d,-1), (d,0), (d,1)]
@@ -181,10 +193,12 @@ class Soldier(Piece):
         return moves
         
 class Elephant(Piece):
+    # moves like a rook but can only capture like a knight
     def get_legal_moves(self, board, row, col, gamestate):
         moves: list[coordinate] = []
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
         moves += move_helper(board, row, col, directions, self.colour, capture=False)
+        moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
         offsets = [
             (-2, -1), (-2, 1), (-1, -2), (-1, 2),
             (1, -2), (1, 2), (2, -1), (2, 1)
@@ -197,28 +211,63 @@ class Elephant(Piece):
                 if target is not None and target.colour != self.colour:
                     moves.append((r, c))
 
-        return moves
+        return list(set((moves)))
     
 class Dog(Piece):
+    # moves like a rook but jumps over every second square
     def get_legal_moves(self, board, row, col, gamestate):
-        directions = [(1,0), (-1,0), (0, 1), (0,-1)]
-        moves = move_helper(board, row, col, directions, self.colour, max_distance=6, jump=True)
-        moves = [m for i,m in enumerate(moves) if i+1%2==0] # keep move if its index is even starting at 1
+        directions = [(1,0), (-1,0), (0,1), (0,-1)]
+        moves: list[tuple[int, int]] = []
+
+        for drow, dcol in directions:
+            trow, tcol = row + drow, col + dcol
+            distance = 0
+            while 0 <= trow < 8 and 0 <= tcol < 8 and distance < 4:
+                target = board[trow][tcol]
+
+                # Only add every second square
+                if distance % 2 == 1:
+                    if target is None or target.colour != self.colour:
+                        moves.append((trow, tcol))
+                    else:
+                        break  # can't land on own piece
+
+                # Always jump over intermediate squares
+                trow += drow
+                tcol += dcol
+                distance += 1
+
+        return moves
+    
+class Vampire(Piece):
+    # moves like a queen but can only capture like a king
+    def get_legal_moves(self, board, row, col, gamestate):
+        moves = []
+        direction = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
+        moves += move_helper(board, row, col, direction, self.colour, capture=False)
+        moves += move_helper(board, row, col, direction, self.colour, max_distance=1, capture=True)
+        return list(set((moves)))
+    
+class Planet(Piece):
+    # moves like a horse but jumps directly diagonally
+    def get_legal_moves(self, board, row, col, gamestate):
+        moves = []
+        # Diagonal knight jumps (2 squares diagonally)
+        jumps = [(2,2), (2,-2), (-2,2), (-2,-2)]
+        for dr, dc in jumps:
+            r, c = row + dr, col + dc
+            if 0 <= r < 8 and 0 <= c < 8:
+                target = board[r][c]
+                if target is None or target.colour != self.colour:
+                    moves.append((r, c))
+
         return moves
 
-    
-if __name__ == '__main__':
-    # --- ai generated code ---
-    # when this module is executed as a script, delegate to the
-    # main chess program instead of trying to import the pieces again.
-    # we use subprocess to avoid creating a circular import: chess.py
-    # already imports this module at the top level.
-    import subprocess, sys, os
-
-    # figure out the path to the chess script relative to this file
-    script_dir = os.path.dirname(__file__)
-    chess_path = os.path.join(script_dir, 'chess.py')
-
-    # run the chess program with the same interpreter
-    subprocess.run([sys.executable, chess_path])
+if __name__ == "__main__":
+    try:
+        import chess
+        chess.main()
+    except error as e:
+        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+            print(e)
     

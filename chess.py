@@ -53,6 +53,7 @@ from pieces import (
     Pawn,
     Knight,
     Bishop,
+    Planet,
     Rook,
     Queen,
     King,
@@ -61,6 +62,7 @@ from pieces import (
     Soldier,
     Elephant,
     Dog,
+    Vampire,
 )
 
 # ----------- DATA/SETUP -----------
@@ -111,6 +113,8 @@ class KingError(Exception):
     Kings Not Found
     """
     pass
+
+LEFTCLICK = 1
 
 # ------------------- BOARD SETUP -------------------
 
@@ -250,16 +254,16 @@ def evil_board() -> Board:
 
 # black pieces
     board[0] = [
-    Elephant("b", "E"), Dog("b", "H"), Bishop("b", "B"), Queen("b", "Q"),
-    King("b", "K"), Bishop("b", "B"), Dog("b", "H"), Elephant("b", "E")
+    Elephant("b", "E"), Dog("b", "H"), Planet("b", "C"), Vampire("b", "V"),
+    King("b", "D"), Planet("b", "C"), Dog("b", "H"), Elephant("b", "E")
 ]
     board[1] = [Soldier("b", "s") for _ in range(8)]
 
 # white pieces
     board[6] = [Soldier("w", "s") for _ in range(8)]
     board[7] = [
-    Elephant("w", "E"), Dog("w", "H"), Bishop("w", "B"), Queen("w", "Q"),
-    King("w", "K"), Bishop("w", "B"), Dog("w", "H"), Elephant("w", "E")
+    Elephant("w", "E"), Dog("w", "H"), Planet("w", "C"), Vampire("w", "V"),
+    King("w", "D"), Planet("w", "C"), Dog("w", "H"), Elephant("w", "E")
 ]
     return board
 
@@ -352,6 +356,8 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.last_double_pawn: coordinate | None = None
         self.en_passant_square: coordinate | None = None
 
+        self.evil_mode: bool = settings.get("evil_mode", False)
+
         self.game_over: bool = False
         self.winner: str | None = None
         self.draw_type: str | None = None
@@ -406,8 +412,10 @@ CHECKED_DARK: Color = 225, 105, 84
 
 COLOURS: list[Color] = [LIGHT, DARK] 
 
-OPTIONS: list[str] = ["Q", "R", "B", "N"]
 CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
+if gamestate.evil_mode:
+    CLASSES_OPTIONS = [(Vampire, "V"), (Elephant, "E"), (Planet, "C"), (Dog, "H")]
+OPTIONS = [n for _, n in CLASSES_OPTIONS]
 
 # ------------------- LOAD PIECE IMAGES -------------------
 
@@ -416,9 +424,20 @@ IMAGES = {}
 original = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk",]
 
-evil = ["ws", "we", "wh", "bh", "bs", "be"]
+evil = ["ws", "we", "wh", "wd", "wv", "wv", "wc", "bc", "bv", "bd", "bh", "bs", "be"]
 
-pieces_list = original + evil
+# Piece prefixes
+# s - white soldier
+# e - white elephant
+# h - white hound (dog)
+# d - white dictator (evil mode king)
+# v - white vampire
+# c - white celestial body (moon or sun)
+
+
+custom = []
+
+pieces_list = original + evil + custom
 
 try:
     for piece in pieces_list:
@@ -500,7 +519,7 @@ def draw_pieces(screen, board, flipped: bool=False):
                     screen.blit(pygame.transform.rotate(IMAGES[piece.image_key()], 180),
                             (col * SQUARE_SIZE, row * SQUARE_SIZE))
     except KeyError as e:
-        print("\033[31mAn error has occured attempting to load some images! if you made a custom piece make sure it add it to image_pieces[]")
+        print("\033[31mAn error has occured attempting to load some images! if you made a custom piece make sure it add it to custom[]")
         print(f"{e}\033[0m")
         return
 
@@ -525,7 +544,7 @@ def draw_promotion(colour):
     for i, piece_name in enumerate(OPTIONS):
         prom_menu_img = IMAGES[colour.lower() + piece_name.lower()]
         if not gamestate.white_turn:
-            prom_menu_img = pygame.transform.rotate(prom_menu_img, 180)
+            prom_menu_img = pygame.transform.rotate(prom_menu_img, 180) # flip promotion options because they are their own surface
         menu.blit(prom_menu_img, (0, i * SQUARE_SIZE))
     return menu
 
@@ -691,7 +710,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
     promotion_move = False
 
     # promotion
-    if isinstance(piece, Pawn) and (trow == 7 or trow == 0) and not simulate:
+    if (isinstance(piece, Pawn) or isinstance(piece, Soldier)) and (trow == 7 or trow == 0) and not simulate:
         promotion_move = True
         gamestate.promotion_active = True
         gamestate.promotion_square = (trow, tcol)
@@ -762,7 +781,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
         if not enemy_has_move:
             if king_in_check(gamestate, enemy):
-                print(gamestate.white_turn)
                 gamestate.game_over = True
                 gamestate.winner = piece.colour
                 return
@@ -778,7 +796,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             gamestate.draw_type = "insufficient material"
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
-            if not (isinstance(piece, Pawn) and target[0] == 0): # if human didnt move a pawn to the back rank
+            if not ((isinstance(piece, Pawn) or isinstance(piece, Soldier)) and target[0] == 0): # if human didnt move a pawn to the back rank
                 if ai_boost:
                     move_ai(gamestate, double=True) # preform an additional move that doesnt flip the turn so the next move can flip it
                 move_ai(gamestate, ai_move)
@@ -797,6 +815,11 @@ PIECE_VALUES = {
     Bishop: 3,
     Rook: 5,
     Queen: 9,
+    Soldier: 2,
+    Elephant: 3.5,
+    Dog: 4,
+    Vampire: 5,
+    Planet: 2.5,
     King: 100
 }
 
@@ -963,8 +986,8 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
     mouse_x, mouse_y = mouse_pos
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
     if (row, col) in gamestate.promotion_click_locations and gamestate.promotion_square is not None:
-        options_classes = [Queen, Rook, Bishop, Knight]
-        options_letters = ["Q", "R", "B", "N"]  # must match the image keys
+        options_classes = [p for p, _ in CLASSES_OPTIONS]
+        options_letters = [n for _, n in CLASSES_OPTIONS]  # must match the image keys
 
         chosen_index = row - gamestate.promotion_click_locations[0][0]
         gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]] = options_classes[chosen_index](
@@ -996,7 +1019,6 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
 
             if not enemy_has_move:
                 if king_in_check(gamestate, enemy):
-                    print(gamestate.white_turn)
                     gamestate.game_over = True
                     gamestate.winner = gamestate.promotion_color
                 else:
@@ -1022,9 +1044,7 @@ def event_handling():
             
             if event.type == pygame.QUIT:
                 return False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button != 1:
-                    continue # dont excecute the following code if mousebutton is not 1 (left click)
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == LEFTCLICK:
                 mx, my = event.pos
 
                 if not gamestate.white_turn:
@@ -1039,7 +1059,7 @@ def event_handling():
                         gamestate.selected_square = None
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    import menu
+                    import menu # import menu at this scope to avoid circular import
                     menu.main()
 
 # ------------------- MAIN LOOP -------------------
@@ -1057,7 +1077,6 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
 
     if settings.get("evil_mode"):
         gamestate.board = (BOARDS.get("evil") or standard_board)()
-        print(BOARDS.get("evil"))
 
     while running:  
         running = event_handling()
@@ -1087,7 +1106,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
         
         
         rotated = pygame.transform.rotate(screen, 180)
-        if not gamestate.white_turn and not ai:
+        if not gamestate.white_turn and not ai: # rotate the screen if its blacks turn (some elements are unaffected)
             screen.blit(rotated)
 
         if ai:
