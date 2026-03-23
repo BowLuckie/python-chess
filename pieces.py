@@ -179,6 +179,7 @@ class King(Piece):
         return moves
     
 class Soldier(Piece):
+    # moves like a pawn but has no capture restrictions
     def get_legal_moves(self, board, row, col, gamestate):
         d = -1 if self.colour == "w" else 1
         directions = [(d,-1), (d,0), (d,1)]
@@ -192,10 +193,12 @@ class Soldier(Piece):
         return moves
         
 class Elephant(Piece):
+    # moves like a rook but can only capture like a knight
     def get_legal_moves(self, board, row, col, gamestate):
         moves: list[coordinate] = []
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
         moves += move_helper(board, row, col, directions, self.colour, capture=False)
+        moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
         offsets = [
             (-2, -1), (-2, 1), (-1, -2), (-1, 2),
             (1, -2), (1, 2), (2, -1), (2, 1)
@@ -211,6 +214,7 @@ class Elephant(Piece):
         return moves
     
 class Dog(Piece):
+    # moves like a rook but jumps over every second square
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
         moves = move_helper(board, row, col, directions, self.colour, max_distance=6, jump=True)
@@ -218,11 +222,27 @@ class Dog(Piece):
         return moves
 
 class Vampire(Piece):
+    # moves like a queen but can only capture like a king
     def get_legal_moves(self, board, row, col, gamestate):
         moves = []
         direction = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         moves += move_helper(board, row, col, direction, self.colour, capture=False)
         moves += move_helper(board, row, col, direction, self.colour, max_distance=1, capture=True)
+        return moves
+    
+class Planet(Piece):
+    # moves like a horse but jumps directly diagonally
+    def get_legal_moves(self, board, row, col, gamestate):
+        moves = []
+        # Diagonal knight jumps (2 squares diagonally)
+        jumps = [(2,2), (2,-2), (-2,2), (-2,-2)]
+        for dr, dc in jumps:
+            r, c = row + dr, col + dc
+            if 0 <= r < 8 and 0 <= c < 8:
+                target = board[r][c]
+                if target is None or target.colour != self.colour:
+                    moves.append((r, c))
+
         return moves
 
 if __name__ == "__main__":

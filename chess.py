@@ -53,6 +53,7 @@ from pieces import (
     Pawn,
     Knight,
     Bishop,
+    Planet,
     Rook,
     Queen,
     King,
@@ -253,16 +254,16 @@ def evil_board() -> Board:
 
 # black pieces
     board[0] = [
-    Elephant("b", "E"), Dog("b", "H"), Bishop("b", "B"), Vampire("b", "V"),
-    King("b", "D"), Bishop("b", "B"), Dog("b", "H"), Elephant("b", "E")
+    Elephant("b", "E"), Dog("b", "H"), Planet("b", "C"), Vampire("b", "V"),
+    King("b", "D"), Planet("b", "C"), Dog("b", "H"), Elephant("b", "E")
 ]
     board[1] = [Soldier("b", "s") for _ in range(8)]
 
 # white pieces
     board[6] = [Soldier("w", "s") for _ in range(8)]
     board[7] = [
-    Elephant("w", "E"), Dog("w", "H"), Bishop("w", "B"), Vampire("w", "V"),
-    King("w", "D"), Bishop("w", "B"), Dog("w", "H"), Elephant("w", "E")
+    Elephant("w", "E"), Dog("w", "H"), Planet("w", "C"), Vampire("w", "V"),
+    King("w", "D"), Planet("w", "C"), Dog("w", "H"), Elephant("w", "E")
 ]
     return board
 
@@ -421,7 +422,16 @@ IMAGES = {}
 original = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk",]
 
-evil = ["ws", "we", "wh", "wd", "wv", "wv", "bv", "bd", "bh", "bs", "be"]
+evil = ["ws", "we", "wh", "wd", "wv", "wv", "wc", "bc", "bv", "bd", "bh", "bs", "be"]
+
+# Piece prefixes
+# s - white soldier
+# e - white elephant
+# h - white hound (dog)
+# d - white dictator (evil mode king)
+# v - white vampire
+# c - white celestial body (moon or sun)
+
 
 custom = []
 
