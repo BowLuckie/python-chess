@@ -238,7 +238,7 @@ def test_ai_prom() -> Board:
     board[0][0] = King("b", "K")
 
     # Pawn ready to promote (moving "down" to row 7)
-    board[6][1] = Pawn("b", "P")
+    board[6][1] = Soldier("b", "S")
 
     # --- White setup ---
     # White king far away so it doesn't interfere
@@ -344,8 +344,8 @@ class GameState:  # this class contains all the mutable variables that migtht ne
     def reset(self):
         # adding type annotations can often catch runtime errors before as they are interpreted
         self.board: Board = BOARDS.get(board_mode, standard_board)() # .get allows us to specify a default value as apposeded to indexing which raises an error
-        if settings.get("evil_mode"):
-            self.board = evil_board()
+        if settings.get("evil_mode") and settings.get("board_mode") == "standard":
+            self.board = (BOARDS.get("evil") or standard_board)()
 
 
         self.white_turn = True
@@ -363,10 +363,6 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         except IndexError:
             raise KingError(f"Board is missing a king! kings found: white: {self.white_king_pos if hasattr(GameState, "white_king_pos") else None}, "
                             f"black: {self.black_king_pos if hasattr(GameState, "black_king_pos") else None}")
-
-        if board_mode == "aipromotion":
-            self.black_king_pos = (0,0)
-            self.white_king_pos = (7,7)
 
         self.last_double_pawn: coordinate | None = None
         self.en_passant_square: coordinate | None = None
@@ -884,7 +880,7 @@ def move_ai(gamestate: GameState, double: bool=False):
         ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
 
         # promotion
-        if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
+        if (isinstance(ai_piece, Pawn) or isinstance(ai_piece, Soldier)) and ai_chosen_move[1][0] == 7:
             gamestate.promotion_active = False
             gamestate.promotion_square = None
             gamestate.promotion_color = None
@@ -1104,7 +1100,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     running = True  # local running flag
 
 
-    if settings.get("evil_mode"):
+    if settings.get("evil_mode") and settings.get("board_mode") == "standard":
         gamestate.board = (BOARDS.get("evil") or standard_board)()
 
     classes_options, options = build_options(gamestate)
