@@ -110,13 +110,13 @@ class Pawn(Piece):
 
 class Knight(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
-        offsets = [
+        deltas = [
         (-2, -1), (-2, 1), (-1, -2), (-1, 2),
         (1, -2), (1, 2), (2, -1), (2, 1)
     ]
         moves: list[coordinate] = []
 
-        for dr, dc in offsets:
+        for dr, dc in deltas:
             r, c = row + dr, col + dc
             if 0 <= r < 8 and 0 <= c < 8:
                 target: Piece | None = board[r][c]
@@ -257,12 +257,12 @@ class Vampire(Piece):
                 r += dr
                 c += dc
 
-        knight_offsets = [
+        knight_deltas = [
             (-2, -1), (-2, 1), (-1, -2), (-1, 2),
             (1, -2), (1, 2), (2, -1), (2, 1)
         ]
 
-        for dr, dc in knight_offsets:
+        for dr, dc in knight_deltas:
             r, c = row + dr, col + dc
             if 0 <= r < 8 and 0 <= c < 8:
                 target = board[r][c]

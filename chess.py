@@ -65,6 +65,8 @@ from pieces import (
     Vampire,
 )
 
+from chess_ai import move_ai
+
 # ----------- DATA/SETUP -----------
 
 # aliases
@@ -428,7 +430,6 @@ def build_options(gamestate):
     if gamestate.evil_mode:
         CLASSES_OPTIONS = [(Vampire, "V"), (Elephant, "E"), (Planet, "C"), (Dog, "H")]
     OPTIONS = [n for _, n in CLASSES_OPTIONS]
-    print(OPTIONS)
     return CLASSES_OPTIONS, OPTIONS
 
 classes_options, options = build_options(gamestate)
@@ -815,7 +816,8 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             if not ((isinstance(piece, Pawn) or isinstance(piece, Soldier)) and target[0] == 0): # if human didnt move a pawn to the back rank
                 if ai_boost:
                     move_ai(gamestate, double=True) # preform an additional move that doesnt flip the turn so the next move can flip it
-                move_ai(gamestate, ai_move)
+                score = move_ai(gamestate, ai_move)
+                print(f"ai liked that move: {score}")
                 
             else:
                 return # breaks out of the function
@@ -839,87 +841,7 @@ PIECE_VALUES = {
     King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
 }
 
-def move_ai(gamestate: GameState, double: bool=False):
-    ai_legal_moves = []
-    best_score = -float("inf")
-    best_moves = []
-    TRADE_SCALE = 0.8 # adjust to make ai prefer trades
 
-    for row in range(8):
-        for col in range(8):
-            p = gamestate.board[row][col]
-            if p is not None and p.colour == "b":
-                for cord in p.get_legal_moves(gamestate.board, row, col, gamestate):
-                    move = ((row, col), cord) # origin target
-
-                    if simulate_move(gamestate, move[0], move[1]):
-                        ai_legal_moves.append(move)
-
-                        target_piece: Piece = gamestate.board[cord[0]][cord[1]]
-
-                        # base score
-                        score = 0
-
-                        # capture scoring
-                        if target_piece is not None and target_piece.colour != p.colour:
-                            score += PIECE_VALUES.get(type(target_piece), 0) * TRADE_SCALE
-
-                        # small activity bonus
-                        score += 0.2
-
-                        # center control
-                        if cord in [(3,3),(3,4),(4,3),(4,4)]:
-                            score += 0.55
-
-                        if isinstance(p, Vampire):
-                            if square_is_attacked(cord, "w", gamestate):
-                                print("Vampire sees danger at", cord)
-                            else:
-                                print("Vampire thinks safe at", cord)   
-
-                        # universal danger penalty
-                        if square_is_attacked(cord, "w", gamestate):
-                            score -= PIECE_VALUES.get(type(p), 0)
-
-                        if score > best_score:
-                            best_score = score
-                            best_moves = [move]
-                        elif score == best_score:
-                            best_moves.append(move)
-
-    try:
-        # pick best move if exists, otherwise random legal move
-        ai_chosen_move = choice(best_moves if best_moves else ai_legal_moves)
-
-        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
-
-        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
-
-        # promotion
-        if (isinstance(ai_piece, Pawn) or isinstance(ai_piece, Soldier)) and ai_chosen_move[1][0] == 7:
-            gamestate.promotion_active = False
-            gamestate.promotion_square = None
-            gamestate.promotion_color = None
-
-            newp = choice(classes_options)
-            gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
-            if not double:
-                gamestate.white_turn = False # to be swapped later
-
-    except IndexError:
-        # no moves available
-        gamestate.game_over = True
-        if insufficient_mat(board=gamestate.board):
-            gamestate.winner = "d"
-            gamestate.draw_type = "insufficient material"
-            return
-        
-        if king_in_check(gamestate=gamestate, colour="b"):
-            gamestate.winner = "w"
-        else:
-            gamestate.winner = "d"
-            gamestate.draw_type = "stalemate"
-            print("ai_stalemate")
 
 def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState) -> bool:
     if gamestate.game_over:
@@ -1036,7 +958,7 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         options_letters[chosen_index])
         gamestate.white_turn = not gamestate.white_turn
         enemy = "w" if gamestate.promotion_color == "b" else "b"
-        print(gamestate.evil_mode)
+
         if king_in_check(gamestate, enemy):
             enemy_has_move = False
 
@@ -1117,7 +1039,6 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     gamestate.reset()
     running = True  # local running flag
 
-    print(settings.get("board_mode"))
     if settings.get("evil_mode") and settings.get("board_mode", "None") in ("standard", "None"):
         gamestate.board = (BOARDS.get("evil") or standard_board)()
 
