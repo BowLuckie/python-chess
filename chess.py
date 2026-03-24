@@ -821,7 +821,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 return # breaks out of the function
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
-    if not simulate and not double and not (not ai_glob and promotion_move):
+    if not (simulate or double or (not ai_glob and promotion_move)):
         gamestate.white_turn = not gamestate.white_turn
 
 
@@ -887,6 +887,8 @@ def move_ai(gamestate: GameState, double: bool=False):
 
             newp = choice(classes_options)
             gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
+            if not double:
+                gamestate.white_turn = False # to be swapped later
 
     except IndexError:
         # no moves available
