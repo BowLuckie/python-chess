@@ -267,6 +267,17 @@ def evil_board() -> Board:
 ]
     return board
 
+def evil_game_over() -> Board:
+    board: Board = [[None]*8 for _ in range(8)]
+
+    board[0][4] = King("b", "D")
+    board[7][4] = King("w", "D")
+ 
+    board[1][0] = Soldier("w", "S")
+    board[2][1] = Vampire("w", "V")
+
+    return board
+
 BOARDS: dict[str, FunctionType] = {
 "standard": standard_board,
 "promotion": promotion_test_board,
@@ -278,6 +289,7 @@ BOARDS: dict[str, FunctionType] = {
 "insufficientmat": draw_by_insufmat,
 "aipromotion": test_ai_prom,
 "evil": evil_board,
+"evilcheckmate": evil_game_over,
 }
 
 def resource_path(relative_path: str) -> str:
@@ -412,10 +424,15 @@ CHECKED_DARK: Color = 225, 105, 84
 
 COLOURS: list[Color] = [LIGHT, DARK] 
 
-CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
-if gamestate.evil_mode:
-    CLASSES_OPTIONS = [(Vampire, "V"), (Elephant, "E"), (Planet, "C"), (Dog, "H")]
-OPTIONS = [n for _, n in CLASSES_OPTIONS]
+def build_options(gamestate):
+    CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
+    if gamestate.evil_mode:
+        CLASSES_OPTIONS = [(Vampire, "V"), (Elephant, "E"), (Planet, "C"), (Dog, "H")]
+    OPTIONS = [n for _, n in CLASSES_OPTIONS]
+    print(OPTIONS)
+    return CLASSES_OPTIONS, OPTIONS
+
+classes_options, options = build_options(gamestate)
 
 # ------------------- LOAD PIECE IMAGES -------------------
 
@@ -538,10 +555,10 @@ def draw_legal_moves(screen, moves: list[coordinate]):
         screen.blit(circle_surface, (col * SQUARE_SIZE, row * SQUARE_SIZE))
     
 def draw_promotion(colour):
-    global OPTIONS
+    global options
     menu = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE * 4))
     menu.fill((255,255,255)) 
-    for i, piece_name in enumerate(OPTIONS):
+    for i, piece_name in enumerate(options):
         prom_menu_img = IMAGES[colour.lower() + piece_name.lower()]
         if not gamestate.white_turn:
             prom_menu_img = pygame.transform.rotate(prom_menu_img, 180) # flip promotion options because they are their own surface
@@ -779,6 +796,11 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             if enemy_has_move:
                 break
 
+        if insufficient_mat(gamestate.board):
+                    gamestate.winner = "d"
+                    gamestate.game_over = True
+                    gamestate.draw_type = "insufficient material"
+
         if not enemy_has_move:
             if king_in_check(gamestate, enemy):
                 gamestate.game_over = True
@@ -789,11 +811,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 gamestate.winner = "d"
                 gamestate.draw_type = "stalemate"
                 return
-
-        if insufficient_mat(gamestate.board):
-            gamestate.winner = "d"
-            gamestate.game_over = True
-            gamestate.draw_type = "insufficient material"
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
             if not ((isinstance(piece, Pawn) or isinstance(piece, Soldier)) and target[0] == 0): # if human didnt move a pawn to the back rank
@@ -862,23 +879,29 @@ def move_ai(gamestate: GameState, double: bool=False):
 
         ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
 
-        # handle promotion
+        # promotion
         if isinstance(ai_piece, Pawn) and ai_chosen_move[1][0] == 7:
             gamestate.promotion_active = False
             gamestate.promotion_square = None
             gamestate.promotion_color = None
 
-            newp = choice(CLASSES_OPTIONS)
+            newp = choice(classes_options)
             gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
 
     except IndexError:
         # no moves available
         gamestate.game_over = True
+        if insufficient_mat(board=gamestate.board):
+            gamestate.winner = "d"
+            gamestate.draw_type = "insufficient material"
+            return
+        
         if king_in_check(gamestate=gamestate, colour="b"):
             gamestate.winner = "w"
         else:
             gamestate.winner = "d"
             gamestate.draw_type = "stalemate"
+            print("ai_stalemate")
 
 def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState) -> bool:
     if gamestate.game_over:
@@ -986,8 +1009,8 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
     mouse_x, mouse_y = mouse_pos
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
     if (row, col) in gamestate.promotion_click_locations and gamestate.promotion_square is not None:
-        options_classes = [p for p, _ in CLASSES_OPTIONS]
-        options_letters = [n for _, n in CLASSES_OPTIONS]  # must match the image keys
+        options_classes = [p for p, _ in classes_options]
+        options_letters = [n for _, n in classes_options]  # must match the image keys
 
         chosen_index = row - gamestate.promotion_click_locations[0][0]
         gamestate.board[gamestate.promotion_square[0]][gamestate.promotion_square[1]] = options_classes[chosen_index](
@@ -995,6 +1018,7 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         options_letters[chosen_index])
         gamestate.white_turn = not gamestate.white_turn
         enemy = "w" if gamestate.promotion_color == "b" else "b"
+        print(gamestate.evil_mode)
         if king_in_check(gamestate, enemy):
             enemy_has_move = False
 
@@ -1069,14 +1093,17 @@ print("\033[33mif you made a new board, add it to BOARDS and json.dump method be
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
 def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
-    global ai_glob, ai_boost
+    global ai_glob, ai_boost, classes_options, options
     ai_glob = ai
     ai_boost = ai_b
     gamestate.reset()
     running = True  # local running flag
 
-    if settings.get("evil_mode"):
+
+    if settings.get("evil_mode") and settings.get("board_mode") == "standard":
         gamestate.board = (BOARDS.get("evil") or standard_board)()
+
+    classes_options, options = build_options(gamestate)
 
     while running:  
         running = event_handling()
@@ -1087,12 +1114,16 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
             gamestate.white_king_pos if king_in_check(gamestate, "w") else 
             gamestate.black_king_pos if king_in_check(gamestate, "b") else None
             )
+        
         # make losing king square checked
         if gamestate.game_over and gamestate.winner is not None:
             square_in_check = gamestate.white_king_pos if gamestate.winner == "b" else gamestate.black_king_pos
-            
+
+        if insufficient_mat(board=gamestate.board):
+            square_in_check = None
+
         draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
-        draw_pieces(screen, gamestate.board, flipped=not gamestate.white_turn)
+        draw_pieces(screen, gamestate.board, flipped=not gamestate.white_turn and not gamestate.game_over)
         draw_legal_moves(screen, gamestate.legal_moves)
 
         if gamestate.promotion_active and gamestate.promotion_square:
@@ -1102,11 +1133,11 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
                 
 
         if gamestate.game_over and gamestate.winner is not None:
-            display_outcome(winner=gamestate.winner, flipped=not gamestate.white_turn)
+            display_outcome(winner=gamestate.winner, flipped=not gamestate.white_turn and not gamestate.game_over)
         
         
         rotated = pygame.transform.rotate(screen, 180)
-        if not gamestate.white_turn and not ai: # rotate the screen if its blacks turn (some elements are unaffected)
+        if not gamestate.white_turn and not ai and not gamestate.game_over: # rotate the screen if its blacks turn (some elements are unaffected)
             screen.blit(rotated)
 
         if ai:

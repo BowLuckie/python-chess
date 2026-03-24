@@ -9,7 +9,7 @@
 # [/] Implement Bishop class
 # [/] Implement Rook class
 # [/] Implement Queen class
-# [ ] Implement King class
+# [/] Implement King class
 
 from typing import TypeAlias
 from typing import TYPE_CHECKING
@@ -110,19 +110,20 @@ class Pawn(Piece):
 
 class Knight(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
-        moves: list[coordinate] = []
         offsets = [
-            (-2, -1), (-2, 1), (-1, -2), (-1, 2),
-            (1, -2), (1, 2), (2, -1), (2, 1)
-        ]
+        (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+        (1, -2), (1, 2), (2, -1), (2, 1)
+    ]
+        moves: list[coordinate] = []
 
         for dr, dc in offsets:
             r, c = row + dr, col + dc
             if 0 <= r < 8 and 0 <= c < 8:
                 target: Piece | None = board[r][c]
-                if target is None or target.colour != self.colour:
+                if target is None or target.colour != board[row][col].colour:
                     moves.append((r, c))
         return moves
+
     
 # the rest of the pieces require no specialized behavior for base movement
 class Bishop(Piece):
@@ -240,13 +241,44 @@ class Dog(Piece):
         return moves
     
 class Vampire(Piece):
-    # moves like a queen but can only capture like a king
+    # moves like a queen and a knight combined
     def get_legal_moves(self, board, row, col, gamestate):
         moves = []
-        direction = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        moves += move_helper(board, row, col, direction, self.colour, capture=False)
-        moves += move_helper(board, row, col, direction, self.colour, max_distance=1, capture=True)
-        return list(set((moves)))
+
+        # Queen-like sliding directions
+        directions = [
+            (1,0), (-1,0), (0,1), (0,-1),
+            (1,1), (-1,1), (-1,-1), (1,-1)
+        ]
+
+        for dr, dc in directions:
+            r, c = row + dr, col + dc
+            while 0 <= r < 8 and 0 <= c < 8:
+                target = board[r][c]
+
+                if target is None:
+                    moves.append((r, c))  # empty square → legal
+                else:
+                    if target.colour != self.colour:
+                        moves.append((r, c))  # capture enemy
+                    break  # stop sliding after any piece
+
+                r += dr
+                c += dc
+
+        knight_offsets = [
+            (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+            (1, -2), (1, 2), (2, -1), (2, 1)
+        ]
+
+        for dr, dc in knight_offsets:
+            r, c = row + dr, col + dc
+            if 0 <= r < 8 and 0 <= c < 8:
+                target = board[r][c]
+                if target is None or target.colour != self.colour:
+                    moves.append((r, c))
+
+        return list(set(moves))
     
 class Planet(Piece):
     # moves like a horse but jumps directly diagonally
