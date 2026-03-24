@@ -1034,7 +1034,7 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.promotion_click_locations = []
         if gamestate.game_over:
             return
-    if ai_glob:
+    if ai_glob and not gamestate.promotion_active:
         move_ai(gamestate=gamestate)
         gamestate.white_turn = True
         
