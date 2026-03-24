@@ -17,7 +17,7 @@ You can browse the source directly on GitHub, or download it locally:
 
 In the latest release, download the **source code** from the **Assets** section to open it in your own editor.
 
-### Running the `.py` Files
+### Running the `.py` Files (NOT RECOMMENDED)
 
 Running the project from source is not recommended due to current compatibility issues between Python and Pygame.
 
