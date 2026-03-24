@@ -344,6 +344,9 @@ class GameState:  # this class contains all the mutable variables that migtht ne
     def reset(self):
         # adding type annotations can often catch runtime errors before as they are interpreted
         self.board: Board = BOARDS.get(board_mode, standard_board)() # .get allows us to specify a default value as apposeded to indexing which raises an error
+        if settings.get("evil_mode"):
+            self.board = evil_board()
+
 
         self.white_turn = True
 
