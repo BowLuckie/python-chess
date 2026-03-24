@@ -833,9 +833,9 @@ PIECE_VALUES = {
     Rook: 5,
     Queen: 9,
     Soldier: 2,
-    Elephant: 3.5,
+    Elephant: 6,
     Dog: 4,
-    Vampire: 5,
+    Vampire: 12,
     Planet: 2.5,
     King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
 }
@@ -855,16 +855,17 @@ def move_ai(gamestate: GameState, double: bool=False):
                     if simulate_move(gamestate, move[0], move[1]):
                         ai_legs.append(move)
 
-                        target_piece = gamestate.board[cord[0]][cord[1]]
+                        target_piece: Piece = gamestate.board[cord[0]][cord[1]]
 
                         score = 0
-                        if target_piece is not None:
+                        if target_piece is not None and target_piece.colour != p.colour:
                             # prefer higher-value captures
                             score = PIECE_VALUES.get(type(target_piece), 0)
 
                             # optional: avoid bad trades
                             score -= PIECE_VALUES.get(type(p), 0)
-
+                        elif target_piece is not None and target_piece.colour == p.colour:
+                            score = -1 # worse than making a move to open space, but it will do it if it has to
                         if score > best_score:
                             best_score = score
                             best_moves = [move]
