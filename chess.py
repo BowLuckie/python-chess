@@ -837,7 +837,7 @@ PIECE_VALUES = {
     Dog: 4,
     Vampire: 5,
     Planet: 2.5,
-    King: 100
+    King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
 }
 
 def move_ai(gamestate: GameState, double: bool=False):

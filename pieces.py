@@ -50,7 +50,7 @@ def move_helper(board, row, col, directions, colour, max_distance=8, capture=Tru
             tcol += dcol
             distance += 1
 
-    return moves
+    return list(set(moves))
 
 
 class Piece:
@@ -106,7 +106,7 @@ class Pawn(Piece):
                 if (row, c) == gamestate.last_double_pawn:
                     moves.append((row + direction, c))
 
-        return moves
+        return list(set(moves))
 
 class Knight(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
@@ -122,7 +122,7 @@ class Knight(Piece):
                 target: Piece | None = board[r][c]
                 if target is None or target.colour != board[row][col].colour:
                     moves.append((r, c))
-        return moves
+        return list(set(moves))
 
     
 # the rest of the pieces require no specialized behavior for base movement
@@ -177,7 +177,7 @@ class King(Piece):
         print(gamestate.evil_mode)
         moves += move_helper(board, row, col, directions, self.colour, max_distance=1, self_captures=gamestate.evil_mode)
 
-        return moves
+        return list(set(moves))
     
 class Soldier(Piece):
     # moves like a pawn but has no capture restrictions
@@ -191,28 +191,19 @@ class Soldier(Piece):
         else:
             moves = move_helper(board, row, col, directions, self.colour, max_distance=1)
 
-        return moves
+        return list(set(moves))
         
 class Elephant(Piece):
-    # moves like a rook but can only capture like a knight
+    # moves like a rook and a king
     def get_legal_moves(self, board, row, col, gamestate):
-        moves: list[coordinate] = []
-        directions = [(1,0), (-1,0), (0, 1), (0,-1)]
-        moves += move_helper(board, row, col, directions, self.colour, capture=False)
-        moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
-        offsets = [
-            (-2, -1), (-2, 1), (-1, -2), (-1, 2),
-            (1, -2), (1, 2), (2, -1), (2, 1)
-        ]
+        directions = [(1,0), (-1,0), (0,1), (0,-1)]
+        king_directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
+        moves: list[tuple[int, int]] = []
 
-        for dr, dc in offsets:
-            r, c = row + dr, col + dc
-            if 0 <= r < 8 and 0 <= c < 8:
-                target: Piece | None = board[r][c]
-                if target is not None and target.colour != self.colour:
-                    moves.append((r, c))
+        moves += move_helper(board, row, col, directions, self.colour)
+        moves += move_helper(board, row, col, king_directions, self.colour, max_distance=1)
 
-        return list(set((moves)))
+        return list(set(moves))
     
 class Dog(Piece):
     # moves like a rook but jumps over every second square
@@ -285,7 +276,7 @@ class Planet(Piece):
     def get_legal_moves(self, board, row, col, gamestate):
         moves = []
         # Diagonal knight jumps (2 squares diagonally)
-        jumps = [(2,2), (2,-2), (-2,2), (-2,-2)]
+        jumps = [(2,2), (2,-2), (-2,2), (-2,-2), (1,1), (1,-1), (-1,1), (-1,-1)]
         for dr, dc in jumps:
             r, c = row + dr, col + dc
             if 0 <= r < 8 and 0 <= c < 8:
@@ -293,7 +284,7 @@ class Planet(Piece):
                 if target is None or target.colour != self.colour:
                     moves.append((r, c))
 
-        return moves
+        return list(set(moves))
 
 if __name__ == "__main__":
     try:
