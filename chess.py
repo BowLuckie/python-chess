@@ -840,31 +840,47 @@ PIECE_VALUES = {
 }
 
 def move_ai(gamestate: GameState, double: bool=False):
-    ai_legs = []
+    ai_legal_moves = []
     best_score = -float("inf")
     best_moves = []
+    TRADE_SCALE = 0.8 # adjust to make ai prefer trades
 
     for row in range(8):
         for col in range(8):
             p = gamestate.board[row][col]
             if p is not None and p.colour == "b":
                 for cord in p.get_legal_moves(gamestate.board, row, col, gamestate):
-                    move = ((row, col), cord)
+                    move = ((row, col), cord) # origin target
 
                     if simulate_move(gamestate, move[0], move[1]):
-                        ai_legs.append(move)
+                        ai_legal_moves.append(move)
 
                         target_piece: Piece = gamestate.board[cord[0]][cord[1]]
 
+                        # base score
                         score = 0
-                        if target_piece is not None and target_piece.colour != p.colour:
-                            # prefer higher-value captures
-                            score = PIECE_VALUES.get(type(target_piece), 0)
 
-                            # optional: avoid bad trades
+                        # capture scoring
+                        if target_piece is not None and target_piece.colour != p.colour:
+                            score += PIECE_VALUES.get(type(target_piece), 0) * TRADE_SCALE
+
+                        # small activity bonus
+                        score += 0.2
+
+                        # center control
+                        if cord in [(3,3),(3,4),(4,3),(4,4)]:
+                            score += 0.55
+
+                        if isinstance(p, Vampire):
+                            if square_is_attacked(cord, "w", gamestate):
+                                print("Vampire sees danger at", cord)
+                            else:
+                                print("Vampire thinks safe at", cord)   
+
+                        # universal danger penalty
+                        if square_is_attacked(cord, "w", gamestate):
                             score -= PIECE_VALUES.get(type(p), 0)
-                        elif target_piece is not None and target_piece.colour == p.colour:
-                            score = -1 # worse than making a move to open space, but it will do it if it has to
+
                         if score > best_score:
                             best_score = score
                             best_moves = [move]
@@ -873,7 +889,7 @@ def move_ai(gamestate: GameState, double: bool=False):
 
     try:
         # pick best move if exists, otherwise random legal move
-        ai_chosen_move = choice(best_moves if best_moves else ai_legs)
+        ai_chosen_move = choice(best_moves if best_moves else ai_legal_moves)
 
         move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
 
