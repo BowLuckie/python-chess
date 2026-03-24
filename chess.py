@@ -1099,8 +1099,8 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     gamestate.reset()
     running = True  # local running flag
 
-
-    if settings.get("evil_mode") and settings.get("board_mode") == "standard":
+    print(settings.get("board_mode"))
+    if settings.get("evil_mode") and settings.get("board_mode", "None") in ("standard", "None"):
         gamestate.board = (BOARDS.get("evil") or standard_board)()
 
     classes_options, options = build_options(gamestate)
