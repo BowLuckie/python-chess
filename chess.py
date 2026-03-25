@@ -416,6 +416,8 @@ pygame.display.set_icon(ICON)
 ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
 ai_boost = False
 
+move_counter: int = 0
+
 LIGHT: Color = 230, 210, 170
 DARK: Color = 184, 135, 98
 LIGHT_SELECTED: Color = 255, 250, 125
@@ -713,6 +715,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
     """
     Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
     """
+    global move_counter
     orow, ocol = origin # origin-x and origin-y
     trow, tcol = target
 
@@ -811,6 +814,8 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 gamestate.winner = "d"
                 gamestate.draw_type = "stalemate"
                 return
+
+        move_counter += 1
 
         if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
             if not ((isinstance(piece, Pawn) or isinstance(piece, Soldier)) and target[0] == 0): # if human didnt move a pawn to the back rank

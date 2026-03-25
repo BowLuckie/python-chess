@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pygame
 from pieces import King, move_helper, Pawn, Soldier, Piece
 from typing import TypeAlias
@@ -8,22 +10,43 @@ coordinate: TypeAlias = tuple[int, int]
 
 # constants; adjust to change the motivations of at ai
 
-ACTIVITY_BONUS = 0.5
-CENTER_BONUS = 0.55
-TRADE_SCALE = 0.8 # adjust to make ai prefer trades
-DANGER_PENALTY = 0.9
-KING_MOVE_PENALTY = 12
-VARIATION = 0.1
+ACTIVITY_BONUS = 0.41
+CENTER_BONUS = 0.3
+TRADE_SCALE = 0.8
+DANGER_PENALTY = 1.03
+king_move_penalty = 6
+variation = 0.4
+edge_pawn_penalty = 5
+DOUBLE_MOVE_PAWN_BONUS = 5
 
-centers = [(3,3),(3,4),(4,3),(4,4)]
+PROGRESSION_TABLE = [
+    [-5,-4,-3,-3,-3,-3,-4,-5],
+    [-4,-2, 0, 0, 0, 0,-2,-4],
+    [-3, 0, 1, 1, 1, 1, 0,-3],
+    [-3, 0, 1, 2, 2, 1, 0,-3],
+    [-3, 0, 1, 2, 2, 1, 0,-3],
+    [-3, 0, 1, 1, 1, 1, 0,-3],
+    [-4,-2, 0, 0, 0, 0,-2,-4],
+    [-5,-4,-3,-3,-3,-3,-4,-5]
+]
 
 def move_ai(gamestate, double: bool=False) -> float | None:
+    global king_move_penalty, edge_pawn_penalty, variation
     from random import choice
-    from chess import PIECE_VALUES, insufficient_mat, king_in_check, move_piece, simulate_move, classes_options
+    from chess import PIECE_VALUES, insufficient_mat, king_in_check, move_piece, simulate_move, classes_options, move_counter
     ai_legal_moves = []
     best_score = -float("inf")
     best_moves = []
     
+    if move_counter > 20:
+        king_move_penalty *= 0.2
+        edge_pawn_penalty *= 0.1
+        variation *= 5 
+
+    if move_counter < 5:
+        variation *= 3
+    else:
+        variation /= 3
 
     for row in range(8):
         for col in range(8):
@@ -32,7 +55,12 @@ def move_ai(gamestate, double: bool=False) -> float | None:
                 for target in piece_to_move.get_legal_moves(gamestate.board, row, col, gamestate):
                     move = ((row, col), target) # origin target
 
-                    if simulate_move(gamestate, move[0], move[1]):
+                    if simulate_move(gamestate, move[0], move[1]): # if the move is allowed
+                        
+                        temp_board = deepcopy(gamestate.board) # high cost function
+                        temp_board[target[0]][target[1]] = piece_to_move
+                        temp_board[row][col] = None
+
                         ai_legal_moves.append(move)
 
                         target_piece: Piece = gamestate.board[target[0]][target[1]]
@@ -44,28 +72,31 @@ def move_ai(gamestate, double: bool=False) -> float | None:
                         if target_piece is not None and target_piece.colour != piece_to_move.colour:
                             score += PIECE_VALUES.get(type(target_piece), 0) * TRADE_SCALE
 
-                        # keep the score positive
                         score += ACTIVITY_BONUS
 
                         # center control
-                        if target in centers:
-                            score += CENTER_BONUS
+                        if not isinstance(piece_to_move, (Pawn, Soldier)):
+                            score += PROGRESSION_TABLE[row][col]
+
+                        if col in (7,6,5,0,1,2):
+                            score -= edge_pawn_penalty
 
                         if isinstance(piece_to_move, King):
-                            score -= KING_MOVE_PENALTY
+                            score -= king_move_penalty
 
-                        # universal danger penalty
-                        if ai_square_is_attacked(gamestate.board, target, "w"):
+                        if isinstance(piece_to_move, (Pawn, Soldier)) and row == 2:
+                            score -= DOUBLE_MOVE_PAWN_BONUS
+
+                        if ai_square_is_attacked(temp_board, target, "w"):
                             score -= PIECE_VALUES.get(type(piece_to_move), 0) * DANGER_PENALTY
 
-                        score += random.random() * VARIATION
+                        score += random.random() * variation # avoid deterministic play
 
                         if score > best_score:
                             best_score = score
                             best_moves = [move]
                         elif score == best_score:
                             best_moves.append(move)
-                            print(f"{move}{dist_from_center(target)}")
 
     try:
         # pick best move if exists, otherwise random legal move
@@ -101,17 +132,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
             gamestate.draw_type = "stalemate"
             print("ai_stalemate")
 
-    return score
-
-def dist_from_center(square: coordinate) -> float:
-    best_dist = float("inf")
-    for center_square in centers:
-        dist = math.dist(square, center_square)
-        if dist < best_dist:
-            best_dist = dist
-    
-    return best_dist
-
+    return best_score
 
 # these functions are diffrent from Piece.get_legal_moves() becuase legal moves are not nescasarily the attack map (eg, legal moves stop at own pieces)
 def ai_sliding_attacks(board, row, col, directions, colour):
