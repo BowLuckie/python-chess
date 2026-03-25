@@ -1,19 +1,23 @@
 from copy import deepcopy
 
 import pygame
-from pieces import King, move_helper, Pawn, Soldier, Piece
+from pieces import (
+    King,
+    Piece,
+    Queen,
+    move_helper,
+    Pawn,
+    Soldier)
+
 from typing import TypeAlias
-import math
-import random
 
 coordinate: TypeAlias = tuple[int, int]
 
-# constants; adjust to change the motivations of at ai
-
-ACTIVITY_BONUS = 0.41
+# the ai's internal motivations and punishment scalars
+ACTIVITY_BONUS = 0.1
 CENTER_BONUS = 0.3
 TRADE_SCALE = 0.8
-DANGER_PENALTY = 1.03
+DANGER_PENALTY = 1.1
 king_move_penalty = 6
 variation = 0.4
 edge_pawn_penalty = 5
@@ -32,110 +36,139 @@ PROGRESSION_TABLE = [
 
 def move_ai(gamestate, double: bool=False) -> float | None:
     global king_move_penalty, edge_pawn_penalty, variation
-    from random import choice
-    from chess import PIECE_VALUES, insufficient_mat, king_in_check, move_piece, simulate_move, classes_options, move_counter
+
+    from random import choice, random
+    from copy import deepcopy
+    from chess import (
+        PIECE_VALUES, insufficient_mat, king_in_check,
+        move_piece, simulate_move, classes_options, move_counter
+    )
+
     ai_legal_moves = []
-    best_score = -float("inf")
     best_moves = []
-    
+    best_score = -float("inf")
+
+    # Adjust dynamic parameters
     if move_counter > 20:
         king_move_penalty *= 0.2
         edge_pawn_penalty *= 0.1
-        variation *= 5 
-
-    if move_counter < 5:
+        variation *= 5
+    elif move_counter < 5:
         variation *= 3
     else:
         variation /= 3
 
+    board: list[list[Piece | None]] = gamestate.board
+
+    # Iterate over all black pieces
     for row in range(8):
         for col in range(8):
-            piece_to_move = gamestate.board[row][col]
-            if piece_to_move is not None and piece_to_move.colour == "b":
-                for target in piece_to_move.get_legal_moves(gamestate.board, row, col, gamestate):
-                    move = ((row, col), target) # origin target
+            origin_piece: Piece | None = board[row][col]
+            if origin_piece is None or origin_piece.colour != "b":
+                continue
 
-                    if simulate_move(gamestate, move[0], move[1]): # if the move is allowed
-                        
-                        temp_board = deepcopy(gamestate.board) # high cost function
-                        temp_board[target[0]][target[1]] = piece_to_move
-                        temp_board[row][col] = None
+            legal_move = origin_piece.get_legal_moves(board, row, col, gamestate)
 
-                        ai_legal_moves.append(move)
+            for target_square in legal_move:
+                move = ((row, col), target_square)
 
-                        target_piece: Piece = gamestate.board[target[0]][target[1]]
+                if not simulate_move(gamestate, move[0], move[1]):
+                    continue
 
-                        # base score
-                        score: float = 0
+                # simulate the move
+                temp_board = deepcopy(board)
+                temp_board[target_square[0]][target_square[1]] = origin_piece
+                temp_board[row][col] = None
 
-                        # capture scoring
-                        if target_piece is not None and target_piece.colour != piece_to_move.colour:
-                            score += PIECE_VALUES.get(type(target_piece), 0) * TRADE_SCALE
+                ai_legal_moves.append(move)
 
-                        score += ACTIVITY_BONUS
+                target_piece: Piece = board[target_square[0]][target_square[1]]
+                score = 0.0
 
-                        # center control
-                        if not isinstance(piece_to_move, (Pawn, Soldier)):
-                            score += PROGRESSION_TABLE[row][col]
+                # Capture scoring
+                if target_piece and target_piece.colour != origin_piece.colour:
+                    score += PIECE_VALUES.get(type(target_piece), 0) * TRADE_SCALE
 
-                        if col in (7,6,5,0,1,2):
-                            score -= edge_pawn_penalty
+                # Activity
+                score += ACTIVITY_BONUS
 
-                        if isinstance(piece_to_move, King):
-                            score -= king_move_penalty
+                # Center control (non-pawns)
+                if not isinstance(origin_piece, (Pawn, Soldier, Queen)):
+                    score += PROGRESSION_TABLE[row][col]
+                elif isinstance(origin_piece, Queen):
+                    score -= PROGRESSION_TABLE[row][col] * 0.5
 
-                        if isinstance(piece_to_move, (Pawn, Soldier)) and row == 2:
-                            score -= DOUBLE_MOVE_PAWN_BONUS
+                # Edge pawn penalty
+                if col in (0, 1, 2, 5, 6, 7):
+                    score -= edge_pawn_penalty
 
-                        if ai_square_is_attacked(temp_board, target, "w"):
-                            score -= PIECE_VALUES.get(type(piece_to_move), 0) * DANGER_PENALTY
+                # try to avoid getting the queen out to early
+                if isinstance(origin_piece, Queen) and move_counter < 12:
+                    score -= 8
 
-                        score += random.random() * variation # avoid deterministic play
+                # King movement penalty
+                if isinstance(origin_piece, King):
+                    score -= king_move_penalty
 
-                        if score > best_score:
-                            best_score = score
-                            best_moves = [move]
-                        elif score == best_score:
-                            best_moves.append(move)
+                # Pawn double-move penalty
+                if isinstance(origin_piece, (Pawn, Soldier)) and row == 2:
+                    score -= DOUBLE_MOVE_PAWN_BONUS
 
-    try:
-        # pick best move if exists, otherwise random legal move
-        ai_chosen_move = choice(best_moves if best_moves else ai_legal_moves)
+                # Danger penalty
+                if ai_square_is_attacked(temp_board, target_square, "w"):
+                    score -= PIECE_VALUES.get(type(origin_piece), 0) * DANGER_PENALTY
 
-        move_piece(gamestate, ai_chosen_move[0], ai_chosen_move[1], ai_move=True, double=double)
+                # Random variation
+                score += random() * variation
 
-        ai_piece = gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]]
+                # Track best moves
+                if score > best_score:
+                    best_score = score
+                    best_moves = [move]
+                elif score == best_score:
+                    best_moves.append(move)
 
-        # promotion
-        if (isinstance(ai_piece, Pawn) or isinstance(ai_piece, Soldier)) and ai_chosen_move[1][0] == 7:
-            gamestate.promotion_active = False
-            gamestate.promotion_square = None
-            gamestate.promotion_color = None
-
-            newp = choice(classes_options)
-            gamestate.board[ai_chosen_move[1][0]][ai_chosen_move[1][1]] = newp[0]("b", newp[1])
-            if not double:
-                gamestate.white_turn = False # to be swapped later
-
-    except IndexError:
-        # no moves available
+    # No legal moves means game over
+    if not ai_legal_moves:
         gamestate.game_over = True
-        if insufficient_mat(board=gamestate.board):
+
+        if insufficient_mat(board=board):
             gamestate.winner = "d"
             gamestate.draw_type = "insufficient material"
             return
-        
+
         if king_in_check(gamestate=gamestate, colour="b"):
             gamestate.winner = "w"
         else:
             gamestate.winner = "d"
             gamestate.draw_type = "stalemate"
-            print("ai_stalemate")
+
+        return None
+
+    # Choose best move (or fallback to any legal move)
+    chosen_move = choice(best_moves if best_moves else ai_legal_moves)
+    move_piece(gamestate, chosen_move[0], chosen_move[1], ai_move=True, double=double)
+
+    # Promotion
+    end_row = chosen_move[1][0]
+    moved_piece = gamestate.board[end_row][chosen_move[1][1]]
+
+    if isinstance(moved_piece, (Pawn, Soldier)) and end_row == 7:
+        gamestate.promotion_active = False
+        gamestate.promotion_square = None
+        gamestate.promotion_color = None
+
+        newp = choice(classes_options)
+        gamestate.board[end_row][chosen_move[1][1]] = newp[0]("b", newp[1])
+
+        if not double:
+            gamestate.white_turn = False
 
     return best_score
 
+
 # these functions are diffrent from Piece.get_legal_moves() becuase legal moves are not nescasarily the attack map (eg, legal moves stop at own pieces)
-def ai_sliding_attacks(board, row, col, directions, colour):
+def sliding_attacks(board, row, col, directions, colour):
     return move_helper(
         board,
         row,
@@ -148,7 +181,7 @@ def ai_sliding_attacks(board, row, col, directions, colour):
         self_captures=True
     )
 
-def ai_knight_attacks(row, col):
+def knight_attacks(row, col):
     deltas = [
         (-2,-1), (-2,1), (-1,-2), (-1,2),
         (1,-2), (1,2), (2,-1), (2,1)
@@ -159,7 +192,7 @@ def ai_knight_attacks(row, col):
         if 0 <= row+dr < 8 and 0 <= col+dc < 8
     ]
 
-def ai_pawn_attacks(row, col, colour):
+def pawn_attacks(row, col, colour):
     direction = -1 if colour == "w" else 1
     attacks = []
     for dc in (-1, 1):
@@ -169,7 +202,7 @@ def ai_pawn_attacks(row, col, colour):
             attacks.append((r, c))
     return attacks
 
-def ai_king_attacks(row, col):
+def king_attacks(row, col):
     deltas = [
         (1,0),(-1,0),(0,1),(0,-1),
         (1,1),(1,-1),(-1,1),(-1,-1)
@@ -180,36 +213,36 @@ def ai_king_attacks(row, col):
         if 0 <= row+dr < 8 and 0 <= col+dc < 8
     ]
 
-def ai_attack_squares(piece, board, row, col):
+def attack_map(piece, board, row, col):
     from pieces import Pawn, Knight, Bishop, Rook, Queen, King
 
     if isinstance(piece, Pawn):
-        return ai_pawn_attacks(row, col, piece.colour)
+        return pawn_attacks(row, col, piece.colour)
 
     if isinstance(piece, Knight):
-        return ai_knight_attacks(row, col)
+        return knight_attacks(row, col)
 
     if isinstance(piece, King):
-        return ai_king_attacks(row, col)
+        return king_attacks(row, col)
 
     if isinstance(piece, Rook):
         dirs = [(1,0),(-1,0),(0,1),(0,-1)]
-        return ai_sliding_attacks(board, row, col, dirs, piece.colour)
+        return sliding_attacks(board, row, col, dirs, piece.colour)
 
     if isinstance(piece, Bishop):
         dirs = [(1,1),(1,-1),(-1,1),(-1,-1)]
-        return ai_sliding_attacks(board, row, col, dirs, piece.colour)
+        return sliding_attacks(board, row, col, dirs, piece.colour)
 
     if isinstance(piece, Queen):
         dirs = [
             (1,0),(-1,0),(0,1),(0,-1),
             (1,1),(1,-1),(-1,1),(-1,-1)
         ]
-        return ai_sliding_attacks(board, row, col, dirs, piece.colour)
+        return sliding_attacks(board, row, col, dirs, piece.colour)
 
     return []
 
-def ai_square_is_attacked(board, square, by_colour):
+def ai_square_is_attacked(board, square, by_colour) -> bool:
     sr, sc = square
 
     for r in range(8):
@@ -218,7 +251,7 @@ def ai_square_is_attacked(board, square, by_colour):
             if p is None or p.colour != by_colour:
                 continue
 
-            if square in ai_attack_squares(p, board, r, c):
+            if square in attack_map(p, board, r, c):
                 return True
 
     return False

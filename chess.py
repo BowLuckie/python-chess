@@ -45,7 +45,6 @@ from types import FunctionType
 from typing import TypeAlias
 import subprocess, sys, os, json
 from random import choice
-import pygame.transform
 
 from pieces import (
     # classics
@@ -831,7 +830,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
     if not (simulate or double or (not ai_glob and promotion_move)):
         gamestate.white_turn = not gamestate.white_turn
 
-
 PIECE_VALUES = {
     Pawn: 1,
     Knight: 3,
@@ -845,8 +843,6 @@ PIECE_VALUES = {
     Planet: 2.5,
     King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
 }
-
-
 
 def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState) -> bool:
     if gamestate.game_over:
