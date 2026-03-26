@@ -1,5 +1,7 @@
 # **Python Chess**
 
+over 2000 lines of code
+
 ## How To Use
 
 ### Playing the Game
