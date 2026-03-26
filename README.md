@@ -58,5 +58,5 @@ If you have suggestions or want to contribute, please open an issue.
 if wish to build a release out of the latest version, run this command. note that this will produce a non-production ready version and may be filled with bugs or unfinished features
 
 ```bash
-python -m PyInstaller --onedir --windowed --name PLACE-VERSION-NAME-HERE --hidden-import=pygame.transform --collect-data pygame --add-data "pieces;pieces" --add-data "theme.json;." menu.py
+python -m PyInstaller --onedir --windowed --name PLACE-VER-NAME-HERE --hidden-import=pygame.transform --collect-data pygame --add-data "pieces;pieces" --add-data "theme.json;." --add-data "chess_ai.py;."  menu.py 
 ```
