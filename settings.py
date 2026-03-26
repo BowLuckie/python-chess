@@ -76,7 +76,6 @@ def main():
                 mx, my = mouse
 
                 if mx // chess.SQUARE_SIZE == 0 and my // chess.SQUARE_SIZE == 7:
-                    print("evil!!")
                     chess.settings["evil_mode"] = not chess.settings["evil_mode"]
                     chess.save_settings(chess.settings)
 

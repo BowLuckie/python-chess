@@ -104,7 +104,7 @@ def load_settings() -> dict:
             with open(SETTINGS_FILE, "r") as f:
                 return json.load(f)
         except Exception:
-            print("an error has occured")
+            print("an error has occured attempting to load settings.json")
             pass
     return DEFAULT_SETTINGS.copy() # creates a new pointer in this scope and returns it
 
