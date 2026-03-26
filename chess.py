@@ -62,6 +62,7 @@ from pieces import (
     Elephant,
     Dog,
     Vampire,
+    Planet
 )
 
 from chess_ai import move_ai
@@ -95,6 +96,9 @@ DEFAULT_SETTINGS = {
 }
 
 def load_settings() -> dict:
+    """
+    returns a dictionary of all the settings in the settings.json file. it this file doesnt exist, it creates a new one
+    """
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r") as f:
@@ -102,10 +106,12 @@ def load_settings() -> dict:
         except Exception:
             print("an error has occured")
             pass
-    # If file missing or corrupted, return defaults
     return DEFAULT_SETTINGS.copy() # creates a new pointer in this scope and returns it
 
 def save_settings(settings: dict):
+    """
+    dump any changes made in the dictionary built by `load_settings()` back into settings.json
+    """
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f, indent=4)
 
@@ -122,6 +128,9 @@ LEFTCLICK = 1
 # each board is a function that returns a Board type, which is just an alias for list[list[None | Piece]], so each square will either have a Piece class or a None.
 
 def standard_board() -> Board:
+    """
+    returns a board object that is the default setup for a chess board.
+    """
     board: Board = [[None]*8 for _ in range(8)]
 
 # black pieces
@@ -294,6 +303,9 @@ BOARDS: dict[str, FunctionType] = {
 }
 
 def resource_path(relative_path: str) -> str:
+    """
+    defines a resource path that is not editable
+    """
     # _MEIPASS exists only when bundled by PyInstaller
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, relative_path)
@@ -322,6 +334,9 @@ def restart_program():
         sys.exit(0)
 
 def get_board_mode() -> str:
+    """
+    looks in the settings file for the board mode
+    """
     path = resource_path("settings.json")
     try:
         with open(path, "r") as f:
@@ -339,10 +354,16 @@ def get_board_mode() -> str:
 board_mode = get_board_mode() # change to match keys in BOARDS dictionary
 
 class GameState:  # this class contains all the mutable variables that migtht need to be accsed throughout the code
+    """
+    Contains all relavant global mutable variables.
+    """
     def __init__(self):
         self.reset()
 
     def reset(self):
+        """
+        acts like an `__init__` function but can be recalled
+        """
         # adding type annotations can often catch runtime errors before as they are interpreted
         self.board: Board = BOARDS.get(board_mode, standard_board)() # .get allows us to specify a default value as apposeded to indexing which raises an error
         if settings.get("evil_mode") and settings.get("board_mode") == "standard":
@@ -375,7 +396,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         self.draw_type: str | None = None
 
     def find_kings(self) -> tuple[coordinate, coordinate]:
-        # loops through each square until it finds a king and puts it into that colour
+        """loops through each square until it finds a king and puts it into that colour"""
         bk = None
         wk = None
         for row in range(8):
@@ -392,6 +413,7 @@ class GameState:  # this class contains all the mutable variables that migtht ne
         return wk, bk
 
 def set_screen_size(size: int):
+    """sets the screen width of the display being used in the file you run it in"""
     global WIDTH, HEIGHT, SQUARE_SIZE
 
     WIDTH = size
@@ -427,6 +449,9 @@ CHECKED_DARK: Color = 225, 105, 84
 COLOURS: list[Color] = [LIGHT, DARK] 
 
 def build_options(gamestate):
+    """
+    builds the options for promotion based off wether evil mode is on or off
+    """
     CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
     if gamestate.evil_mode:
         CLASSES_OPTIONS = [(Vampire, "V"), (Elephant, "E"), (Planet, "C"), (Dog, "H")]
@@ -476,8 +501,13 @@ except FileNotFoundError as e:
 
 # ------------------- DRAWING FUNCTIONS -------------------
 
-def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255), outline_color=(0,0,0), outline_width=2, alpha=255, surf_size: int | None=None):
-    # ai code
+def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255), outline_color=(0,0,0), outline_width=2, alpha=255, surf_size: int | None=None) -> pygame.Surface:
+    """
+    Render text with an outline onto a pygame surface.
+
+    Creates a surface containing the given text with a configurable outline,
+    font, colors, transparency, and optional fixed surface size.
+    """
     font = pygame.font.SysFont(font_name, font_size)
     base = font.render(text, True, text_color).convert_alpha()
     size = (base.get_width() + outline_width*2, base.get_height() + outline_width*2)
@@ -500,32 +530,37 @@ ai_surf = text_outline(text="Playing against AI", alpha=150)
 ai_rect: pygame.Rect = ai_surf.get_rect(bottomright=(WIDTH - 10, HEIGHT - 10))
 
 def draw_board(screen, highlighted: coordinate | None = None, checked: coordinate | None = None):
-    try:
-        for row in range(8):
-            for col in range(8):
-                colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
+    """
+    draws the chess board onto the screen `screen` with and highlighted or checked squares
+    """
+    for row in range(8):
+        for col in range(8):
+            colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
 
-                if (row, col) == checked:
-                    if colour == LIGHT:
-                        colour = CHECKED_LIGHT
-                    else:
-                        colour = CHECKED_DARK
+            if (row, col) == checked:
+                if colour == LIGHT:
+                    colour = CHECKED_LIGHT
+                else:
+                    colour = CHECKED_DARK
 
-                if (row, col) == highlighted: # highlighted squares take priority over checked squares
-                    if colour == LIGHT or colour == CHECKED_LIGHT:
-                        colour = LIGHT_SELECTED
-                    else:
-                        colour = DARK_SELECTED
+            if (row, col) == highlighted: # highlighted squares take priority over checked squares
+                if colour == LIGHT or colour == CHECKED_LIGHT:
+                    colour = LIGHT_SELECTED
+                else:
+                    colour = DARK_SELECTED
 
-                pygame.draw.rect(
-                screen,
-                colour,
-                (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
-            )
-    except:
-        return
+            pygame.draw.rect(
+            screen,
+            colour,
+            (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
+        )
 
-def draw_pieces(screen, board, flipped: bool=False):
+def draw_pieces(screen, board=gamestate.board, flipped: bool=False):
+    """
+    draws each piece onto the screen based of the gived board object which is always `gamestate.board` 
+
+    will also draw them flipped in order to compensate for the general rotation that takes place in the `main()` function
+    """
     try: # sometimes quitting the program can not communicate to the drawing functions
         for row in range(8):
             for col in range(8):
@@ -542,7 +577,10 @@ def draw_pieces(screen, board, flipped: bool=False):
         return
 
 def draw_legal_moves(screen, moves: list[coordinate]):
-# creates a temp surface with an alpha channel and blits that to the main screen surface
+    """
+    creates a temp surface with an alpha channel containing small grey dot and blits that to the main screen surface at the specified positions
+    """
+
     for row, col in moves:
         circle_surface = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
 
@@ -845,6 +883,11 @@ PIECE_VALUES = {
 }
 
 def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState) -> bool:
+    """
+    returns whether a square is being attacked in the current board state. 
+
+    this should not be used as a general attack map function. instead use `chess_ai.attack_map()`
+    """
     if gamestate.game_over:
         return False
     for r in range(8):
@@ -884,12 +927,18 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
     return False
 
 def king_in_check(gamestate: GameState, colour):
+    """
+    build king position and enemy arguments and calls square is attacked on them
+    """
     # build args
     king_pos = gamestate.white_king_pos if colour == "w" else gamestate.black_king_pos
     enemy = "b" if colour == "w" else "w"
     return square_is_attacked(king_pos, enemy, gamestate) # pass the args
 
 def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) -> bool:
+    """
+    moves a piece on a copy of the gamestate and check if any rules are broken
+    """
     # create a complete copy of the game state
     if gamestate.game_over:
         return False
@@ -909,6 +958,9 @@ def simulate_move(gamestate: GameState, origin: coordinate, target: coordinate) 
 # ------------------- MOUSE CLICK -------------------
 
 def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | None:
+    """
+    returns a coordinate for highlighting or clicking
+    """
     mouse_x, mouse_y = mouse_pos
     row = mouse_y // SQUARE_SIZE
     col = mouse_x // SQUARE_SIZE
@@ -1004,6 +1056,9 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.white_turn = True
         
 def event_handling():
+    """
+    checks all current events and acts on them
+    """
     global running
     for event in pygame.event.get():
             
@@ -1034,6 +1089,12 @@ print("\033[33mif you made a new board, add it to BOARDS and json.dump method be
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
 def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
+    """
+    Run the main game loop.
+
+    Initializes game state, handles events, updates visuals, and manages gameplay
+    flow including AI, promotions, check states, and endgame display until exit.
+    """
     global ai_glob, ai_boost, classes_options, options
     ai_glob = ai
     ai_boost = ai_b

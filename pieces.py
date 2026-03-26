@@ -23,6 +23,18 @@ coordinate: TypeAlias = tuple[int, int]
 # Right now, every piece moves like a pawn, but it works
 
 def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False, self_captures=False) -> list[tuple[int, int]]:
+    """
+    Return a list of valid target squares from a given position based on movement rules.
+
+    Iterates over the provided directions and collects reachable coordinates,
+    respecting board bounds, maximum distance, and interaction rules:
+    - empty squares are always valid
+    - enemy pieces can be captured if `capture` is True
+    - friendly pieces can be included if `self_captures` is True
+    - movement can continue past pieces if `jump` is True
+
+    Returns unique (row, col) tuples.
+    """
     moves: list[tuple[int, int]] = []
 
     for drow, dcol in directions:
@@ -54,7 +66,12 @@ def move_helper(board, row, col, directions, colour, max_distance=8, capture=Tru
 
 
 class Piece:
+    """
+    The base class that all other pieces work off of. 
+    each subclass inherints the `color`, `name` and `has_moved` variables and the `get_legal_moves()` and `image_key()` functions
+    """
     def __init__(self, colour: str, name: str, has_moved: bool=False):
+        
         self.colour = colour
         self.name = name
         self.has_moved = has_moved
@@ -75,12 +92,25 @@ class Piece:
         Returns:
             list[coordinate]: List of valid (row, col) squares the piece can move to.
         """
+
+        # if get_legal_moves is called on the Pieces parent class, raise this error
         raise NotImplementedError("Sub-class of piece unspecified: Piece is the parent class, and so there is no movement options defined")
 
-    def image_key(self):
-        return self.colour + self.name.lower()
+    def image_key(self) -> str:
+        """
+        returns the colour and name name of a peice as a two character string.
+
+        for example:
+        
+        (White Bishop).image_key() -> "wb"
+        """
+        return self.colour.lower() + self.name.lower()
     
 class Pawn(Piece):
+    """
+    moves one square forward. can only attack on its two forward diagonals. if it has not move it can move forward 2 squares as well as 1
+    if it gets to the end you can chose to promote it to any piece of higher value except the king
+    """
     def get_legal_moves(self, board, row: int, col: int, gamestate):
         moves: list[coordinate] = []
         direction = -1 if self.colour == "w" else 1
@@ -109,6 +139,18 @@ class Pawn(Piece):
         return list(set(moves))
 
 class Knight(Piece):
+    """
+    Jumps in the direction of one of its deltas, skipping over any pieces in its path. it deltas are defined as 
+
+    ```python
+    deltas = [
+        (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+        (1, -2), (1, 2), (2, -1), (2, 1)
+    ]
+    ```
+
+    this means the night can move 2 squares in any direction and then one square perpendicular to its ending point
+    """
     def get_legal_moves(self, board, row, col, gamestate):
         deltas = [
         (-2, -1), (-2, 1), (-1, -2), (-1, 2),
@@ -127,22 +169,35 @@ class Knight(Piece):
     
 # the rest of the pieces require no specialized behavior for base movement
 class Bishop(Piece):
+    """
+    Can move infinitley in one direction, as long as it is diagonal to the bishops origin.
+    """
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,1), (-1,1), (-1,-1), (1,-1)]
         return move_helper(board, row, col, directions, self.colour)
     
 class Rook(Piece):
+    """
+    Can move infinitley in one direction, as long as it is directly across or directly up from the rooks origin.
+    """
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
         return move_helper(board, row, col, directions, self.colour)
     
 class Queen(Piece):
+    """
+    can move infinitley in any 1 direction from its origin
+    """
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         return move_helper(board, row, col, directions, self.colour, max_distance=8)
 
 
-class King(Piece):  
+class King(Piece):
+    """
+    can only move to one of the 8 adjacent squares. can also move squares horizontally on its starting rank if there is a rook on the end of that rank
+    and both pieces havent moved. If evil mode is active, it transforms into a dictator which functions the exact same except it can take any peiece, regardless of colour
+    """
     def get_legal_moves(self, board, row, col, gamestate):
         from chess import king_in_check, square_is_attacked
 
@@ -180,7 +235,7 @@ class King(Piece):
         return list(set(moves))
     
 class Soldier(Piece):
-    # moves like a pawn but has no capture restrictions
+    """moves like a pawn but has no capture restrictions"""
     def get_legal_moves(self, board, row, col, gamestate):
         d = -1 if self.colour == "w" else 1
         directions = [(d,-1), (d,0), (d,1)]
@@ -194,7 +249,7 @@ class Soldier(Piece):
         return list(set(moves))
         
 class Elephant(Piece):
-    # moves like a rook and a king
+    """moves like a rook and a king"""
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0,1), (0,-1)]
         king_directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
@@ -206,7 +261,7 @@ class Elephant(Piece):
         return list(set(moves))
     
 class Dog(Piece):
-    # moves like a rook but jumps over every second square
+    """moves like a rook but jumps over every second square. it can also move one square diagonal ro its origin"""
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0,1), (0,-1)]
         diagonal_deltas = [(1,1), (-1,1), (-1,-1), (1,-1)]
@@ -234,7 +289,7 @@ class Dog(Piece):
         return moves
     
 class Vampire(Piece):
-    # moves like a queen and a knight combined
+    """moves like a queen and a knight combined"""
     def get_legal_moves(self, board, row, col, gamestate):
         moves = []
 
@@ -274,7 +329,7 @@ class Vampire(Piece):
         return list(set(moves))
     
 class Planet(Piece):
-    # moves like a horse but jumps directly diagonally
+    """moves like a horse but jumps directly diagonally a max of 2 squares"""
     def get_legal_moves(self, board, row, col, gamestate):
         moves = []
         # Diagonal knight jumps (2 squares diagonally)

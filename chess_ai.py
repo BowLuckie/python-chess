@@ -26,6 +26,10 @@ PROGRESSION_TABLE = [
 ]
 
 def move_ai(gamestate, double: bool=False) -> float | None:
+    """
+    calculates the most favourable move, preforms that move in this position and returns its score
+    """
+    # making a proper ai was never my intention, but the infastructure is there and there is some basic logic behind it although right now it not very strong and tends to really like certian openings
     global king_move_penalty, edge_pawn_penalty, variation
 
     from random import choice, random
@@ -205,6 +209,9 @@ def king_attacks(row, col):
     ]
 
 def attack_map(piece, board, row, col):
+    """
+    returns a the squares that are under fire
+    """
     from pieces import Pawn, Knight, Bishop, Rook, Queen, King
 
     if isinstance(piece, Pawn):
