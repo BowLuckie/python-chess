@@ -49,8 +49,8 @@ sb = pygame.image.load(chess.resource_path(r"pieces\ws.png"))
 soldier_button = pygame.transform.scale(sb, (chess.SQUARE_SIZE, chess.SQUARE_SIZE))
 
 e = pygame.image.load(chess.resource_path(r"pieces\evil.png"))
-evil_text = pygame.transform.scale(e, (chess.SQUARE_SIZE * 2, chess.SQUARE_SIZE))
-evil_rect = evil_text.get_rect(center=(chess.WIDTH // 2, (chess.HEIGHT // 4) - chess.SQUARE_SIZE))
+evil_text = pygame.transform.scale(e, (chess.SQUARE_SIZE * 4, chess.SQUARE_SIZE*2))
+evil_rect = evil_text.get_rect(center=(chess.WIDTH // 2, (chess.HEIGHT // 4) + chess.SQUARE_SIZE * 0.79))
 
 def main():
     global restart_requested, evil_mode

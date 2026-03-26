@@ -38,6 +38,7 @@ If `pip` is not installed, download it from:
 ---
 
 ## Features
+
 - Standard chess pieces and ruleset  
 - Sleek and stylish UI  
 - A strong AI to challenge players  
@@ -48,6 +49,7 @@ If `pip` is not installed, download it from:
 making a proper ai was never my intention, but the infastructure is there and there is some basic logic behind it although right now it not very strong and tends to really like certian openings
 
 ## Contributing
+
 This is currently a solo project. You are welcome to fork the repository, but pull requests are not being accepted at this time.  
 If you have suggestions or want to contribute, please open an issue.
 
