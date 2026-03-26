@@ -1,17 +1,8 @@
 from copy import deepcopy
-
 import pygame
-from pieces import (
-    King,
-    Piece,
-    Queen,
-    move_helper,
-    Pawn,
-    Soldier)
+import pieces
 
-from typing import TypeAlias
-
-coordinate: TypeAlias = tuple[int, int]
+coordinate = pieces.coordinate
 
 # the ai's internal motivations and punishment scalars
 ACTIVITY_BONUS = 0.1
@@ -58,12 +49,12 @@ def move_ai(gamestate, double: bool=False) -> float | None:
     else:
         variation /= 3
 
-    board: list[list[Piece | None]] = gamestate.board
+    board: list[list[pieces.Piece | None]] = gamestate.board
 
     # Iterate over all black pieces
     for row in range(8):
         for col in range(8):
-            origin_piece: Piece | None = board[row][col]
+            origin_piece: pieces.Piece | None = board[row][col]
             if origin_piece is None or origin_piece.colour != "b":
                 continue
 
@@ -82,7 +73,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
 
                 ai_legal_moves.append(move)
 
-                target_piece: Piece = board[target_square[0]][target_square[1]]
+                target_piece: pieces.Piece = board[target_square[0]][target_square[1]]
                 score = 0.0
 
                 # Capture scoring
@@ -92,29 +83,29 @@ def move_ai(gamestate, double: bool=False) -> float | None:
                 # Activity
                 score += ACTIVITY_BONUS
 
-                # Center control (non-pawns)
-                if not isinstance(origin_piece, (Pawn, Soldier, Queen)):
+                # center control 
+                if not isinstance(origin_piece, (pieces.Pawn, pieces.Soldier, pieces.Queen, pieces.Vampire)):
                     score += PROGRESSION_TABLE[row][col]
-                elif isinstance(origin_piece, Queen):
+                elif isinstance(origin_piece, pieces.Queen):
                     score -= PROGRESSION_TABLE[row][col] * 0.5
 
-                # Edge pawn penalty
+                # edge pawn penalty
                 if col in (0, 1, 2, 5, 6, 7):
                     score -= edge_pawn_penalty
 
                 # try to avoid getting the queen out to early
-                if isinstance(origin_piece, Queen) and move_counter < 12:
+                if isinstance(origin_piece, (pieces.Queen, pieces.Vampire)) and move_counter < 12:
                     score -= 8
 
-                # King movement penalty
-                if isinstance(origin_piece, King):
+                # king movement penalty
+                if isinstance(origin_piece, pieces.King):
                     score -= king_move_penalty
 
-                # Pawn double-move penalty
-                if isinstance(origin_piece, (Pawn, Soldier)) and row == 2:
+                # pawn double-move penalty
+                if isinstance(origin_piece, (pieces.Pawn, pieces.Soldier)) and row == 2:
                     score -= DOUBLE_MOVE_PAWN_BONUS
 
-                # Danger penalty
+                # danger penalty
                 if ai_square_is_attacked(temp_board, target_square, "w"):
                     score -= PIECE_VALUES.get(type(origin_piece), 0) * DANGER_PENALTY
 
@@ -153,7 +144,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
     end_row = chosen_move[1][0]
     moved_piece = gamestate.board[end_row][chosen_move[1][1]]
 
-    if isinstance(moved_piece, (Pawn, Soldier)) and end_row == 7:
+    if isinstance(moved_piece, (pieces.Pawn, pieces.Soldier)) and end_row == 7:
         gamestate.promotion_active = False
         gamestate.promotion_square = None
         gamestate.promotion_color = None
@@ -169,7 +160,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
 
 # these functions are diffrent from Piece.get_legal_moves() becuase legal moves are not nescasarily the attack map (eg, legal moves stop at own pieces)
 def sliding_attacks(board, row, col, directions, colour):
-    return move_helper(
+    return pieces.move_helper(
         board,
         row,
         col,

@@ -209,6 +209,7 @@ class Dog(Piece):
     # moves like a rook but jumps over every second square
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0,1), (0,-1)]
+        diagonal_deltas = [(1,1), (-1,1), (-1,-1), (1,-1)]
         moves: list[tuple[int, int]] = []
 
         for drow, dcol in directions:
@@ -229,6 +230,7 @@ class Dog(Piece):
                 tcol += dcol
                 distance += 1
 
+        moves += move_helper(board, row, col, directions=diagonal_deltas, colour=self.colour, max_distance=1)
         return moves
     
 class Vampire(Piece):
