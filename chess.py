@@ -1,13 +1,13 @@
 # Chess.py
 # Bowie Luckie
 # @TODO LIST
-
+#
 # Core gameplay
 # [/] Implement move system (select piece → click destination)
 # [/] Validate moves using get_legal_moves()
 # [/] Switch turns after valid move
 # [/] Piece logic 
-
+#
 # special rules
 # [/] En passant
 # [/] Promotion
@@ -20,12 +20,12 @@
 # [/] display checks
 # [/] Checkmate detection
 # [/] Stalemate detection
-
+#
 # UI improvements
 # [/] Highlight legal moves
 # [/] Display check/checkmate message
 # [/] flip board after each move?
-
+#
 # code improvements
 # [/] Separate code into modules?
 # 
@@ -133,14 +133,14 @@ def standard_board() -> Board:
     """
     board: Board = [[None]*8 for _ in range(8)]
 
-# black pieces
+    # black pieces
     board[0] = [
     Rook("b", "R"), Knight("b", "N"), Bishop("b", "B"), Queen("b", "Q"),
     King("b", "K"), Bishop("b", "B"), Knight("b", "N"), Rook("b", "R")
 ]
     board[1] = [Pawn("b", "P") for _ in range(8)]
 
-# white pieces
+    # white pieces
     board[6] = [Pawn("w", "P") for _ in range(8)]
     board[7] = [
     Rook("w", "R"), Knight("w", "N"), Bishop("w", "B"), Queen("w", "Q"),
@@ -150,10 +150,8 @@ def standard_board() -> Board:
 
 def promotion_test_board() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
-# white pawns ready to promote
     for col in range(2):
         board[6][col] = Pawn("b", "P")
-# black pawns ready to promote
     for col in range(2):
         board[1][col] = Pawn("w", "P")
     board[7][4] = King("w", "K")
@@ -243,18 +241,13 @@ def draw_by_insufmat() -> Board:
 def test_ai_prom() -> Board:
     board: Board = [[None]*8 for _ in range(8)]
 
-    # --- Black setup ---
-    # King trapped in corner
     board[0][0] = King("b", "K")
 
-    # Pawn ready to promote (moving "down" to row 7)
+  
     board[6][1] = Soldier("b", "S")
-
-    # --- White setup ---
-    # White king far away so it doesn't interfere
+   
     board[7][7] = King("w", "K")
 
-    # A piece that forces white to have a move but not affect black
     board[5][6] = Queen("w", "Q")
 
     return board
@@ -327,7 +320,7 @@ def restart_program():
     try:
         subprocess.Popen(args)
     except Exception:
-        # fallback: try launching sys.executable anyway
+        # fallback - try launching sys.executable anyway
         subprocess.Popen([sys.executable] + sys.argv)
     finally:
         # exit cleanly
@@ -448,9 +441,11 @@ CHECKED_DARK: Color = 225, 105, 84
 
 COLOURS: list[Color] = [LIGHT, DARK] 
 
-def build_options(gamestate):
+
+
+def build_options(gamestate=gamestate):
     """
-    builds the options for promotion based off wether evil mode is on or off
+    builds the options for promotion based off wether evil mode is on or off. returns two lists that contain the proper promotion options that the promotion functions will use
     """
     CLASSES_OPTIONS = [(Queen, "Q"), (Rook, "R"), (Bishop, "B"), (Knight, "N")]
     if gamestate.evil_mode:
@@ -477,12 +472,12 @@ evil = ["ws", "we", "wh", "wd", "wv", "wv", "wc", "bc", "bv", "bd", "bh", "bs", 
 # v - white vampire
 # c - white celestial body (moon or sun)
 
-
 custom = []
 
 pieces_list = original + evil + custom
 
 try:
+    # load images
     for piece in pieces_list:
         # loop through each element in pieces_list and check if it has a corrosponding png in pieces/
         p = pygame.image.load(resource_path("pieces/" + piece + ".png"))
@@ -513,6 +508,7 @@ def text_outline(text, font_size=20, font_name="Arial", text_color=(255,255,255)
     size = (base.get_width() + outline_width*2, base.get_height() + outline_width*2)
     surf = pygame.Surface(size if surf_size is None else (surf_size, surf_size), pygame.SRCALPHA)
 
+    # create copies of each letter slighty larger
     for dirx in range(-outline_width, outline_width+1):
         for diry in range(-outline_width, outline_width+1):
             if dirx != 0 or diry != 0:
@@ -537,6 +533,7 @@ def draw_board(screen, highlighted: coordinate | None = None, checked: coordinat
         for col in range(8):
             colour = COLOURS[(row + col) % 2] # Square color is determined by parity of (col + row)
 
+            # overwrite the colours
             if (row, col) == checked:
                 if colour == LIGHT:
                     colour = CHECKED_LIGHT
@@ -605,6 +602,9 @@ def draw_promotion(colour):
     return menu
 
 def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
+    """
+    displays the created promotion menu to the screen through the `pygame.blit` method
+    """
     menu = draw_promotion(colour=color_in)
     prow, pcol = promotion_square
     x = pcol * SQUARE_SIZE
@@ -615,7 +615,7 @@ def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
         y = (prow - 3) * SQUARE_SIZE
         screen.blit(menu, (x, y))
 
-def draw_outcome(winner: str):
+def draw_outcome(winner: str) -> pygame.Surface:
     global button
 
     BOX_HEIGHT = 4 * SQUARE_SIZE
@@ -638,7 +638,7 @@ def draw_outcome(winner: str):
     font_big = pygame.font.SysFont("Arial", 40, bold=True)
     font_btn = pygame.font.SysFont("Arial", 24)
 
-    # --- TEXT ---
+    # TEXT
     if draw and gamestate.draw_type:
         text = "Draw by " + gamestate.draw_type + "!"
     elif draw:
@@ -650,7 +650,7 @@ def draw_outcome(winner: str):
     text_rect = victory_text.get_rect(center=(BOX_WIDTH//2, (BOX_HEIGHT//4)-(SQUARE_SIZE*0.5)))
     box.blit(victory_text, text_rect)
 
-    # --- IMAGE ---
+    # IMAGE
     if draw:
         img = DRAW
     else:
@@ -662,7 +662,7 @@ def draw_outcome(winner: str):
     img_rect = img.get_rect(center=(BOX_WIDTH//2, BOX_HEIGHT//2))
     box.blit(img, img_rect)
 
-    # --- CROWN (only for wins) ---
+    # CROWN is for wins only
     if not draw:
         crown_size = int(SQUARE_SIZE * 0.7)
         crown = pygame.transform.smoothscale(CROWN, (crown_size, crown_size))
@@ -672,7 +672,7 @@ def draw_outcome(winner: str):
         )
         box.blit(crown, crown_rect)
 
-    # --- RESTART BUTTON ---
+    # restart button (i made this before i discovered pygame_gui)
     BTN_W, BTN_H = 140, 80
     btn_x = BOX_WIDTH//2 - BTN_W//2
     btn_y = BOX_HEIGHT - BTN_H - 15
@@ -691,6 +691,7 @@ def draw_outcome(winner: str):
 def display_outcome(winner: str, screen=screen, flipped: bool=False):
     box = draw_outcome(winner)
 
+    # place the outcome in the middle of the screen
     x = WIDTH // 2 - box.get_width() // 2
     y = HEIGHT // 2 - box.get_height() // 2
 
@@ -701,6 +702,9 @@ def display_outcome(winner: str, screen=screen, flipped: bool=False):
     return pygame.Rect(x + button.x, y + button.y, button.width, button.height)
 
 def build_bg() -> pygame.Surface:
+    """
+    returns a surface object that is a board using the same consts as the `draw_board` funtion but without the highlighting
+    """
     bg = pygame.Surface((WIDTH, HEIGHT))
     for row in range(8):
         for col in range(8):
@@ -713,8 +717,11 @@ def build_bg() -> pygame.Surface:
 # ------------------- LOGIC -------------------
 
 def insufficient_mat(board: Board) -> bool:
-    white_pieces: list[tuple[Piece, tuple[int,int]]] = []
-    black_pieces: list[tuple[Piece, tuple[int,int]]] = []
+    """
+    checks the passed board object and returns a bool based of whether it is insufficient matiriel or not
+    """
+    white_pieces: list[tuple[Piece, coordinate]] = []
+    black_pieces: list[tuple[Piece, coordinate]] = []
 
     for row in range(8):
         for col in range(8):
@@ -725,24 +732,26 @@ def insufficient_mat(board: Board) -> bool:
                 else:
                     black_pieces.append((p, (row, col)))
 
+    # ive just added in the evil mode pieces but i havent tested whst situations lead to a draw
+
     # K vs K
     if len(white_pieces) == 0 and len(black_pieces) == 0:
         return True
 
     # K+minor vs K
     if len(white_pieces) == 1 and len(black_pieces) == 0:
-        if isinstance(white_pieces[0][0], (Bishop, Knight)):
+        if isinstance(white_pieces[0][0], (Bishop, Knight, Dog, Planet)):
             return True
 
     if len(white_pieces) == 0 and len(black_pieces) == 1:
-        if isinstance(black_pieces[0][0], (Bishop, Knight)):
+        if isinstance(black_pieces[0][0], (Bishop, Knight, Dog, Planet)):
             return True
 
     # K+B vs K+B same square color
     if len(white_pieces) == 1 and len(black_pieces) == 1:
         wp, wsq = white_pieces[0]
         bp, bsq = black_pieces[0]
-        if isinstance(wp, Bishop) and isinstance(bp, Bishop):
+        if isinstance(wp, (Bishop, Planet)) and isinstance(bp, (Bishop, Planet)):
             if (wsq[0] + wsq[1]) % 2 == (bsq[0] + bsq[1]) % 2:
                 return True
 
@@ -750,7 +759,7 @@ def insufficient_mat(board: Board) -> bool:
 
 def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, simulate=False, ai_move=False, double: bool=False):
     """
-    Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal
+    Move a piece from `origin` to `destination` and update the game state. does not check if the move is legal and only handels promotion, castling and mate
     """
     global move_counter
     orow, ocol = origin # origin-x and origin-y
@@ -788,7 +797,6 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             if rook is not None and hasattr(rook, "has_moved") and not simulate:
                 rook.has_moved = True 
                 
-
         if tcol == 2:
             rook = gamestate.board[trow][0]
             gamestate.board[trow][3] = rook
@@ -817,6 +825,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
         enemy = "w" if piece.colour == "b" else "b"
         enemy_has_move = False
 
+        # loop through each piece and check if it has a move, if it does then break and communicate through enemy_has_move flag
         for r in range(8):
             for c in range(8):
                 p = gamestate.board[r][c]
@@ -868,19 +877,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
     if not (simulate or double or (not ai_glob and promotion_move)):
         gamestate.white_turn = not gamestate.white_turn
 
-PIECE_VALUES = {
-    Pawn: 1,
-    Knight: 3,
-    Bishop: 3,
-    Rook: 5,
-    Queen: 9,
-    Soldier: 2,
-    Elephant: 6,
-    Dog: 4,
-    Vampire: 12,
-    Planet: 2.5,
-    King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
-}
+
 
 def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameState) -> bool:
     """
@@ -890,6 +887,7 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
     """
     if gamestate.game_over:
         return False
+    
     for r in range(8):
         for c in range(8):
             piece = gamestate.board[r][c]
@@ -907,7 +905,7 @@ def square_is_attacked(square: coordinate, looking_color: str, gamestate: GameSt
                         if (ar, ac) == square:
                             return True
 
-            # king attacks (NO castling)
+            # king attacks 
             elif isinstance(piece, King):
                 directions = [(1,0), (-1,0), (0,1), (0,-1),
                               (1,1), (-1,1), (-1,-1), (1,-1)]
@@ -968,11 +966,7 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
 
     piece = gamestate.board[row][col]
 
-    if gamestate.game_over and (
-        (gamestate.white_turn and (row, col) in [(5, 4), (5, 3)]) or
-        (not gamestate.white_turn and (row, col) in [(2, 4), (2, 3)])
-    ): # (5,4) and (5,3) are roughly the squares that the reset button sits on. the other 2 are when the outcome menu is flipped 
-        # return all settings to defaults        
+    if gamestate.game_over and ((gamestate.white_turn and (row, col) in [(5, 4), (5, 3)])): # (5,4) and (5,3) are roughly the squares that the reset button sits on. 
         gamestate.reset()
 
         return None
@@ -987,7 +981,7 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
 
     # Select a piece
     if piece is not None:
-        if ai_glob and piece.colour == "b":
+        if ai_glob and piece.colour == "b": # black pieces can never be selected under any circumstances if ai_mode is on
             return None
         if (gamestate.white_turn and piece.colour == "w") or (not gamestate.white_turn and piece.colour == "b"):
             pseudo_moves = piece.get_legal_moves(gamestate.board, row, col, gamestate)
@@ -1012,6 +1006,7 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.white_turn = not gamestate.white_turn
         enemy = "w" if gamestate.promotion_color == "b" else "b"
 
+        # check for checkmate or stalemate after promotion
         if king_in_check(gamestate, enemy):
             enemy_has_move = False
 
@@ -1034,12 +1029,12 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
                 if enemy_has_move:
                     break
 
+            
             if not enemy_has_move:
+                gamestate.game_over = True
                 if king_in_check(gamestate, enemy):
-                    gamestate.game_over = True
                     gamestate.winner = gamestate.promotion_color
                 else:
-                    gamestate.game_over = True
                     gamestate.winner = "d"
                     gamestate.draw_type = "stalemate"
 
@@ -1051,7 +1046,10 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         gamestate.promotion_click_locations = []
         if gamestate.game_over:
             return
-    if ai_glob and not gamestate.promotion_active:
+        
+    if ai_glob and not gamestate.promotion_active: # the ai shouldnt move if promotion is active and should only move at the end of handle_promotion
+        if ai_boost:
+            move_ai(double=True, gamestate=gamestate)
         move_ai(gamestate=gamestate)
         gamestate.white_turn = True
         
@@ -1067,7 +1065,8 @@ def event_handling():
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == LEFTCLICK:
                 mx, my = event.pos
 
-                if not gamestate.white_turn:
+                if not gamestate.white_turn and gamestate.game_over == False: # i forgot to add a check for is the game is over so thats why the menu has to check for squares 5,4
+                    # flip the mouses percived position if al elements are flipped 
                     mx = screen.get_width() - mx
                     my = screen.get_height() - my
 
@@ -1101,6 +1100,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
     gamestate.reset()
     running = True  # local running flag
 
+    # overwite board if evil mode is on
     if settings.get("evil_mode") and settings.get("board_mode", "None") in ("standard", "None"):
         gamestate.board = (BOARDS.get("evil") or standard_board)()
 
@@ -1120,11 +1120,11 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
         if gamestate.game_over and gamestate.winner is not None:
             square_in_check = gamestate.white_king_pos if gamestate.winner == "b" else gamestate.black_king_pos
 
-        if insufficient_mat(board=gamestate.board):
-            square_in_check = None
+        if gamestate.game_over and gamestate.winner == "d":
+            square_in_check = None # if its a draw, no one wins
 
         draw_board(screen, highlighted=gamestate.selected_square, checked=square_in_check)
-        draw_pieces(screen, gamestate.board, flipped=not gamestate.white_turn and not gamestate.game_over)
+        draw_pieces(screen, gamestate.board, flipped=not gamestate.white_turn and not gamestate.game_over) # becuase the whole screen will do a full rotation, we need to do a pre-emptive flip to account for it
         draw_legal_moves(screen, gamestate.legal_moves)
 
         if gamestate.promotion_active and gamestate.promotion_square:
@@ -1144,7 +1144,7 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
         if ai:
             screen.blit(ai_surf, ai_rect)
         screen.blit(exit_surf, exit_rect)
-        pygame.display.flip()
+        pygame.display.flip() # updates the whole display
 
     pygame.display.quit()
     return  
@@ -1153,6 +1153,6 @@ if __name__ == "__main__":
     try:
         main(ai=ai_glob)
     except pygame.error as e:
-        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+        if str(e) != "video system not initialized":
             print(e)
 

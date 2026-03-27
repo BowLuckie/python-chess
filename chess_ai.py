@@ -25,6 +25,20 @@ PROGRESSION_TABLE = [
     [-5,-4,-3,-3,-3,-3,-4,-5]
 ]
 
+PIECE_VALUES = {
+    pieces.Pawn: 1,
+    pieces.Knight: 3,
+    pieces.Bishop: 3,
+    pieces.Rook: 5,
+    pieces.Queen: 9,
+    pieces.Soldier: 2,
+    pieces.Elephant: 6,
+    pieces.Dog: 4,
+    pieces.Vampire: 12,
+    pieces.Planet: 2.5,
+    pieces.King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
+}
+
 def move_ai(gamestate, double: bool=False) -> float | None:
     """
     calculates the most favourable move, preforms that move in this position and returns its score
@@ -35,7 +49,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
     from random import choice, random
     from copy import deepcopy
     from chess import (
-        PIECE_VALUES, insufficient_mat, king_in_check,
+        insufficient_mat, king_in_check,
         move_piece, simulate_move, classes_options, move_counter
     )
 

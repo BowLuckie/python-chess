@@ -209,7 +209,7 @@ class King(Piece):
         # Queenside castling
         if not self.has_moved and not king_in_check(gamestate, self.colour):
             rook_spot = board[row][0]
-            if (rook_spot is not None and isinstance(rook_spot, Rook) and
+            if (rook_spot is not None and isinstance(rook_spot, (Rook, Elephant)) and
                 rook_spot.colour == self.colour and not rook_spot.has_moved and
                 board[row][1] is None and board[row][2] is None and board[row][3] is None):
 
@@ -220,7 +220,7 @@ class King(Piece):
         # Kingside castling
         if not self.has_moved and not king_in_check(gamestate, self.colour):
             rook_spot = board[row][7]
-            if (rook_spot is not None and isinstance(rook_spot, Rook) and
+            if (rook_spot is not None and isinstance(rook_spot, (Rook, Elephant)) and
                 rook_spot.colour == self.colour and not rook_spot.has_moved and
                 board[row][5] is None and board[row][6] is None):
 
@@ -331,13 +331,13 @@ class Vampire(Piece):
 class Planet(Piece):
     """moves like a horse but jumps directly diagonally a max of 2 squares"""
     def get_legal_moves(self, board, row, col, gamestate):
-        moves = []
+        moves: list[tuple] = []
         # Diagonal knight jumps (2 squares diagonally)
         jumps = [(2,2), (2,-2), (-2,2), (-2,-2), (1,1), (1,-1), (-1,1), (-1,-1)]
         for dr, dc in jumps:
             r, c = row + dr, col + dc
             if 0 <= r < 8 and 0 <= c < 8:
-                target = board[r][c]
+                target: Piece = board[r][c]
                 if target is None or target.colour != self.colour:
                     moves.append((r, c))
 
