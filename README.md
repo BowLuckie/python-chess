@@ -52,8 +52,7 @@ making a proper ai was never my intention, but the infastructure is there and th
 
 ## Contributing
 
-This is currently a solo project. You are welcome to fork the repository, but pull requests are not being accepted at this time.  
-If you have suggestions or want to contribute, please open an issue.
+I am no longer working on this project so forks are encouraged. if you come across an issue, you can submit a issue report but im unlikely to act on it.
 
 ## Building
 
