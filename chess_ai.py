@@ -1,4 +1,7 @@
-from copy import deepcopy
+"""
+Movement and vision functions for the ai.
+"""
+
 import pygame
 import pieces
 

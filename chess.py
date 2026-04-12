@@ -40,19 +40,19 @@
 # /----------- CODE -----------/
 
 import pygame
-import copy
 from types import FunctionType
 from typing import TypeAlias
-import subprocess, sys, os, json
-from random import choice
+import subprocess, sys, os, json, copy
+
+from chess_ai import move_ai
 
 from pieces import (
-    # classics
     Piece,
+
+    # classics
     Pawn,
     Knight,
     Bishop,
-    Planet,
     Rook,
     Queen,
     King,
@@ -61,11 +61,12 @@ from pieces import (
     Soldier,
     Elephant,
     Dog,
+    Planet,
     Vampire,
     Planet
 )
 
-from chess_ai import move_ai
+
 
 # ----------- DATA/SETUP -----------
 
@@ -297,10 +298,9 @@ BOARDS: dict[str, FunctionType] = {
 
 def resource_path(relative_path: str) -> str:
     """
-    defines a resource path that is not editable
+    Returns an absolute path to a resource relative to the script's directory.
     """
-    # _MEIPASS exists only when bundled by PyInstaller
-    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
 def restart_program():

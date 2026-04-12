@@ -11,6 +11,10 @@
 # [/] Implement Queen class
 # [/] Implement King class
 
+"""
+Piece logic functions.
+"""
+
 from typing import TypeAlias
 from typing import TYPE_CHECKING
 from pygame import error
