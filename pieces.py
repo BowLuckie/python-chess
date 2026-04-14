@@ -26,7 +26,7 @@ coordinate: TypeAlias = tuple[int, int]
 
 # Right now, every piece moves like a pawn, but it works
 
-def move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False, self_captures=False) -> list[tuple[int, int]]:
+def _move_helper(board, row, col, directions, colour, max_distance=8, capture=True, jump=False, self_captures=False) -> list[tuple[int, int]]:
     """
     Return a list of valid target squares from a given position based on movement rules.
 
@@ -178,7 +178,7 @@ class Bishop(Piece):
     """
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,1), (-1,1), (-1,-1), (1,-1)]
-        return move_helper(board, row, col, directions, self.colour)
+        return _move_helper(board, row, col, directions, self.colour)
     
 class Rook(Piece):
     """
@@ -186,7 +186,7 @@ class Rook(Piece):
     """
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1)]
-        return move_helper(board, row, col, directions, self.colour)
+        return _move_helper(board, row, col, directions, self.colour)
     
 class Queen(Piece):
     """
@@ -194,7 +194,7 @@ class Queen(Piece):
     """
     def get_legal_moves(self, board, row, col, gamestate):
         directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
-        return move_helper(board, row, col, directions, self.colour, max_distance=8)
+        return _move_helper(board, row, col, directions, self.colour, max_distance=8)
 
 
 class King(Piece):
@@ -234,7 +234,7 @@ class King(Piece):
 
         # Normal king moves
         print(gamestate.evil_mode)
-        moves += move_helper(board, row, col, directions, self.colour, max_distance=1, self_captures=gamestate.evil_mode)
+        moves += _move_helper(board, row, col, directions, self.colour, max_distance=1, self_captures=gamestate.evil_mode)
 
         return list(set(moves))
     
@@ -244,11 +244,11 @@ class Soldier(Piece):
         d = -1 if self.colour == "w" else 1
         directions = [(d,-1), (d,0), (d,1)]
         if (row == 6 and self.colour == "w") or (row == 1 and self.colour == "b"):
-            moves = move_helper(board, row, col, [(d,0)], self.colour, max_distance=2)
-            moves += move_helper(board, row, col, directions, self.colour, max_distance=1)
+            moves = _move_helper(board, row, col, [(d,0)], self.colour, max_distance=2)
+            moves += _move_helper(board, row, col, directions, self.colour, max_distance=1)
             moves = list(set(moves))
         else:
-            moves = move_helper(board, row, col, directions, self.colour, max_distance=1)
+            moves = _move_helper(board, row, col, directions, self.colour, max_distance=1)
 
         return list(set(moves))
         
@@ -259,8 +259,8 @@ class Elephant(Piece):
         king_directions = [(1,0), (-1,0), (0, 1), (0,-1), (1,1), (-1,1), (-1,-1), (1,-1)]
         moves: list[tuple[int, int]] = []
 
-        moves += move_helper(board, row, col, directions, self.colour)
-        moves += move_helper(board, row, col, king_directions, self.colour, max_distance=1)
+        moves += _move_helper(board, row, col, directions, self.colour)
+        moves += _move_helper(board, row, col, king_directions, self.colour, max_distance=1)
 
         return list(set(moves))
     
@@ -289,7 +289,7 @@ class Dog(Piece):
                 tcol += dcol
                 distance += 1
 
-        moves += move_helper(board, row, col, directions=diagonal_deltas, colour=self.colour, max_distance=1)
+        moves += _move_helper(board, row, col, directions=diagonal_deltas, colour=self.colour, max_distance=1)
         return moves
     
 class Vampire(Piece):

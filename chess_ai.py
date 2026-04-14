@@ -52,7 +52,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
     from random import choice, random
     from copy import deepcopy
     from chess import (
-        insufficient_mat, king_in_check,
+        insufficient_material, king_in_check,
         move_piece, simulate_move, classes_options, move_counter
     )
 
@@ -127,7 +127,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
                     score -= DOUBLE_MOVE_PAWN_BONUS
 
                 # danger penalty
-                if ai_square_is_attacked(temp_board, target_square, "w"):
+                if _ai_square_is_attacked(temp_board, target_square, "w"):
                     score -= PIECE_VALUES.get(type(origin_piece), 0) * DANGER_PENALTY
 
                 # Random variation
@@ -144,7 +144,7 @@ def move_ai(gamestate, double: bool=False) -> float | None:
     if not ai_legal_moves:
         gamestate.game_over = True
 
-        if insufficient_mat(board=board):
+        if insufficient_material(board=board):
             gamestate.winner = "d"
             gamestate.draw_type = "insufficient material"
             return
@@ -180,8 +180,8 @@ def move_ai(gamestate, double: bool=False) -> float | None:
 
 
 # these functions are diffrent from Piece.get_legal_moves() becuase legal moves are not nescasarily the attack map (eg, legal moves stop at own pieces)
-def sliding_attacks(board, row, col, directions, colour):
-    return pieces.move_helper(
+def _sliding_attacks(board, row, col, directions, colour):
+    return pieces._move_helper(
         board,
         row,
         col,
@@ -193,7 +193,7 @@ def sliding_attacks(board, row, col, directions, colour):
         self_captures=True
     )
 
-def knight_attacks(row, col):
+def _knight_attacks(row, col):
     deltas = [
         (-2,-1), (-2,1), (-1,-2), (-1,2),
         (1,-2), (1,2), (2,-1), (2,1)
@@ -204,7 +204,7 @@ def knight_attacks(row, col):
         if 0 <= row+dr < 8 and 0 <= col+dc < 8
     ]
 
-def pawn_attacks(row, col, colour):
+def _pawn_attacks(row, col, colour):
     direction = -1 if colour == "w" else 1
     attacks = []
     for dc in (-1, 1):
@@ -214,7 +214,7 @@ def pawn_attacks(row, col, colour):
             attacks.append((r, c))
     return attacks
 
-def king_attacks(row, col):
+def _king_attacks(row, col):
     deltas = [
         (1,0),(-1,0),(0,1),(0,-1),
         (1,1),(1,-1),(-1,1),(-1,-1)
@@ -225,39 +225,39 @@ def king_attacks(row, col):
         if 0 <= row+dr < 8 and 0 <= col+dc < 8
     ]
 
-def attack_map(piece, board, row, col):
+def _attack_map(piece, board, row, col):
     """
     returns a the squares that are under fire
     """
     from pieces import Pawn, Knight, Bishop, Rook, Queen, King
 
     if isinstance(piece, Pawn):
-        return pawn_attacks(row, col, piece.colour)
+        return _pawn_attacks(row, col, piece.colour)
 
     if isinstance(piece, Knight):
-        return knight_attacks(row, col)
+        return _knight_attacks(row, col)
 
     if isinstance(piece, King):
-        return king_attacks(row, col)
+        return _king_attacks(row, col)
 
     if isinstance(piece, Rook):
         dirs = [(1,0),(-1,0),(0,1),(0,-1)]
-        return sliding_attacks(board, row, col, dirs, piece.colour)
+        return _sliding_attacks(board, row, col, dirs, piece.colour)
 
     if isinstance(piece, Bishop):
         dirs = [(1,1),(1,-1),(-1,1),(-1,-1)]
-        return sliding_attacks(board, row, col, dirs, piece.colour)
+        return _sliding_attacks(board, row, col, dirs, piece.colour)
 
     if isinstance(piece, Queen):
         dirs = [
             (1,0),(-1,0),(0,1),(0,-1),
             (1,1),(1,-1),(-1,1),(-1,-1)
         ]
-        return sliding_attacks(board, row, col, dirs, piece.colour)
+        return _sliding_attacks(board, row, col, dirs, piece.colour)
 
     return []
 
-def ai_square_is_attacked(board, square, by_colour) -> bool:
+def _ai_square_is_attacked(board, square, by_colour) -> bool:
     sr, sc = square
 
     for r in range(8):
@@ -266,7 +266,7 @@ def ai_square_is_attacked(board, square, by_colour) -> bool:
             if p is None or p.colour != by_colour:
                 continue
 
-            if square in attack_map(p, board, r, c):
+            if square in _attack_map(p, board, r, c):
                 return True
 
     return False

@@ -427,8 +427,8 @@ screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
-ai_glob: bool = True # if chess.py is "__main__" then this is the default it takes
-ai_boost = False
+ai_active: bool = True # if chess.py is "__main__" then this is the default it takes
+ai_can_double_move = False
 
 move_counter: int = 0
 
@@ -459,10 +459,10 @@ classes_options, options = build_options(gamestate)
 
 IMAGES = {}
 
-original = ["wp", "wr", "wn", "wb", "wq", "wk",
+original_pieces = ["wp", "wr", "wn", "wb", "wq", "wk",
             "bp", "br", "bn", "bb", "bq", "bk",]
 
-evil = ["ws", "we", "wh", "wd", "wv", "wv", "wc", "bc", "bv", "bd", "bh", "bs", "be"]
+evil_pieces = ["ws", "we", "wh", "wd", "wv", "wv", "wc", "bc", "bv", "bd", "bh", "bs", "be"]
 
 # Piece prefixes
 # s - white soldier
@@ -474,25 +474,25 @@ evil = ["ws", "we", "wh", "wd", "wv", "wv", "wc", "bc", "bv", "bd", "bh", "bs", 
 
 custom = []
 
-pieces_list = original + evil + custom
+pieces_list = original_pieces + evil_pieces + custom
 
 try:
     # load images
     for piece in pieces_list:
         # loop through each element in pieces_list and check if it has a corrosponding png in pieces/
-        p = pygame.image.load(resource_path("pieces/" + piece + ".png"))
-        IMAGES[piece] = pygame.transform.scale(p, (SQUARE_SIZE, SQUARE_SIZE))
+        piece_image = pygame.image.load(resource_path("pieces/" + piece + ".png"))
+        IMAGES[piece] = pygame.transform.scale(piece_image, (SQUARE_SIZE, SQUARE_SIZE))
 
     # other images
-    c = pygame.image.load(resource_path("pieces/crown.png"))
-    CROWN = pygame.transform.scale(c, (SQUARE_SIZE, SQUARE_SIZE))
+    crown_image = pygame.image.load(resource_path("pieces/crown.png"))
+    CROWN = pygame.transform.scale(crown_image, (SQUARE_SIZE, SQUARE_SIZE))
 
-    d = pygame.image.load(resource_path("pieces/draw.png"))
-    DRAW = pygame.transform.scale(d, (SQUARE_SIZE, SQUARE_SIZE))
+    draw_image = pygame.image.load(resource_path("pieces/draw.png"))
+    DRAW = pygame.transform.scale(draw_image, (SQUARE_SIZE, SQUARE_SIZE))
 
-except FileNotFoundError as e:
+except FileNotFoundError as error_message:
         print("\033[31mAn error has occured attempting to load some images!")
-        print(f"{e}\033[0m")
+        print(f"{error_message}\033[0m")
 
 # ------------------- DRAWING FUNCTIONS -------------------
 
@@ -616,7 +616,7 @@ def display_prom_menu(color_in, promotion_square: coordinate, screen=screen):
         screen.blit(menu, (x, y))
 
 def draw_outcome(winner: str) -> pygame.Surface:
-    global button
+    global restart_button
 
     BOX_HEIGHT = 4 * SQUARE_SIZE
     BOX_WIDTH = 6 * SQUARE_SIZE
@@ -677,13 +677,13 @@ def draw_outcome(winner: str) -> pygame.Surface:
     btn_x = BOX_WIDTH//2 - BTN_W//2
     btn_y = BOX_HEIGHT - BTN_H - 15
 
-    button = pygame.Rect(btn_x, btn_y, BTN_W, BTN_H)
+    restart_button = pygame.Rect(btn_x, btn_y, BTN_W, BTN_H)
 
-    pygame.draw.rect(box, (60,140,220), button, border_radius=8)
-    pygame.draw.rect(box, (20,60,120), button, 2, border_radius=8)
+    pygame.draw.rect(box, (60,140,220), restart_button, border_radius=8)
+    pygame.draw.rect(box, (20,60,120), restart_button, 2, border_radius=8)
 
     btn_text = font_btn.render("Restart", True, (255,255,255))
-    btn_rect = btn_text.get_rect(center=button.center)
+    btn_rect = btn_text.get_rect(center=restart_button.center)
     box.blit(btn_text, btn_rect)
 
     return box
@@ -699,7 +699,7 @@ def display_outcome(winner: str, screen=screen, flipped: bool=False):
     if flipped:
         screen.blit(pygame.transform.rotate(box, 180), (x, y))
 
-    return pygame.Rect(x + button.x, y + button.y, button.width, button.height)
+    return pygame.Rect(x + restart_button.x, y + restart_button.y, restart_button.width, restart_button.height)
 
 def build_bg() -> pygame.Surface:
     """
@@ -716,7 +716,7 @@ def build_bg() -> pygame.Surface:
 
 # ------------------- LOGIC -------------------
 
-def insufficient_mat(board: Board) -> bool:
+def insufficient_material(board: Board) -> bool:
     """
     checks the passed board object and returns a bool based of whether it is insufficient matiriel or not
     """
@@ -845,7 +845,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
             if enemy_has_move:
                 break
 
-        if insufficient_mat(gamestate.board):
+        if insufficient_material(gamestate.board):
                     gamestate.winner = "d"
                     gamestate.game_over = True
                     gamestate.draw_type = "insufficient material"
@@ -863,9 +863,9 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
 
         move_counter += 1
 
-        if not ai_move and ai_glob: # if the last move was human and the gamemode is set to ai
+        if not ai_move and ai_active: # if the last move was human and the gamemode is set to ai
             if not ((isinstance(piece, Pawn) or isinstance(piece, Soldier)) and target[0] == 0): # if human didnt move a pawn to the back rank
-                if ai_boost:
+                if ai_can_double_move:
                     move_ai(gamestate, double=True) # preform an additional move that doesnt flip the turn so the next move can flip it
                 score = move_ai(gamestate, ai_move)
                 print(f"ai liked that move: {score}")
@@ -874,7 +874,7 @@ def move_piece(gamestate: GameState, origin: coordinate, target: coordinate, sim
                 return # breaks out of the function
 
     # flip turn after moving (even during a promotion selection state we consider the move done)
-    if not (simulate or double or (not ai_glob and promotion_move)):
+    if not (simulate or double or (not ai_active and promotion_move)):
         gamestate.white_turn = not gamestate.white_turn
 
 
@@ -981,7 +981,7 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
 
     # Select a piece
     if piece is not None:
-        if ai_glob and piece.colour == "b": # black pieces can never be selected under any circumstances if ai_mode is on
+        if ai_active and piece.colour == "b": # black pieces can never be selected under any circumstances if ai_mode is on
             return None
         if (gamestate.white_turn and piece.colour == "w") or (not gamestate.white_turn and piece.colour == "b"):
             pseudo_moves = piece.get_legal_moves(gamestate.board, row, col, gamestate)
@@ -1047,8 +1047,8 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
         if gamestate.game_over:
             return
         
-    if ai_glob and not gamestate.promotion_active: # the ai shouldnt move if promotion is active and should only move at the end of handle_promotion
-        if ai_boost:
+    if ai_active and not gamestate.promotion_active: # the ai shouldnt move if promotion is active and should only move at the end of handle_promotion
+        if ai_can_double_move:
             move_ai(double=True, gamestate=gamestate)
         move_ai(gamestate=gamestate)
         gamestate.white_turn = True
@@ -1087,16 +1087,16 @@ print("\033[33mif you made a new board, add it to BOARDS and json.dump method be
 "then change the board mode in the .json. board mode can only be changed if your running the .py file not the .exe\033[0m")
 print("if you are running the exe, and can see this terminal, you are running a pre-release or a debug release.")
 
-def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
+def main(ai: bool=ai_active, ai_b: bool=ai_can_double_move):
     """
     Run the main game loop.
 
     Initializes game state, handles events, updates visuals, and manages gameplay
     flow including AI, promotions, check states, and endgame display until exit.
     """
-    global ai_glob, ai_boost, classes_options, options
-    ai_glob = ai
-    ai_boost = ai_b
+    global ai_active, ai_can_double_move, classes_options, options
+    ai_active = ai
+    ai_can_double_move = ai_b
     gamestate.reset()
     running = True  # local running flag
 
@@ -1151,8 +1151,8 @@ def main(ai: bool=ai_glob, ai_b: bool=ai_boost):
 
 if __name__ == "__main__":
     try:
-        main(ai=ai_glob)
-    except pygame.error as e:
-        if str(e) != "video system not initialized":
-            print(e)
+        main(ai=ai_active)
+    except pygame.error as error_message:
+        if str(error_message) != "video system not initialized":
+            print(error_message)
 
