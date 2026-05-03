@@ -1183,41 +1183,63 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
 def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
     mouse_x, mouse_y = mouse_pos
     row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
+
     if (
         (row, col) in gamestate.promotion_click_locations
         and gamestate.promotion_square is not None
     ):
         options_classes = [p for p, _ in classes_options]
-        options_letters = [n for _, n in classes_options]  # must match the image keys
+        options_letters = [n for _, n in classes_options]  # must match image keys
 
         chosen_index = row - gamestate.promotion_click_locations[0][0]
+
         gamestate.board[gamestate.promotion_square[0]][
             gamestate.promotion_square[1]
         ] = options_classes[chosen_index](
-            gamestate.promotion_color, options_letters[chosen_index]
+            gamestate.promotion_color,
+            options_letters[chosen_index]
         )
+
         gamestate.white_turn = not gamestate.white_turn
         enemy = "w" if gamestate.promotion_color == "b" else "b"
 
-        # check for checkmate or stalemate after promotion
-        if king_in_check(gamestate, enemy):
-            enemy_has_move = False
+        # check check / mate / stalemate AFTER promotion
+        in_check = king_in_check(gamestate, enemy)
 
+        enemy_has_move = False
+
+        if in_check:
             for r in range(8):
                 for c in range(8):
                     p = gamestate.board[r][c]
 
-                    if (
-                        p is None or p.colour != enemy
-                    ):  # only picks up pieces of the opposite colour
+                    if p is None or p.colour != enemy:
                         continue
 
                     moves = p.get_legal_moves(gamestate.board, r, c, gamestate)
 
                     for move in moves:
-                        if simulate_move(
-                            gamestate, (r, c), move
-                        ):  # if the move is allowed (hence it is a legal move), then the enemy has atleast 1 legal move and we dont have to check anymore moves
+                        if simulate_move(gamestate, (r, c), move):
+                            enemy_has_move = True
+                            break
+
+                    if enemy_has_move:
+                        break
+                if enemy_has_move:
+                    break
+        else:
+            # still need to check for stalemate even if not in check
+            for r in range(8):
+                for c in range(8):
+                    p = gamestate.board[r][c]
+
+                    if p is None or p.colour != enemy:
+                        continue
+
+                    moves = p.get_legal_moves(gamestate.board, r, c, gamestate)
+
+                    for move in moves:
+                        if simulate_move(gamestate, (r, c), move):
                             enemy_has_move = True
                             break
 
@@ -1226,25 +1248,26 @@ def handle_promotion(gamestate: GameState, mouse_pos: coordinate):
                 if enemy_has_move:
                     break
 
-            if not enemy_has_move:
-                gamestate.game_over = True
-                if king_in_check(gamestate, enemy):
-                    gamestate.winner = gamestate.promotion_color
-                else:
-                    gamestate.winner = "d"
-                    gamestate.draw_type = "stalemate"
+        if not enemy_has_move:
+            gamestate.game_over = True
 
-        # reset all the promotion related values
+            if in_check:
+                gamestate.winner = gamestate.promotion_color
+                gamestate.draw_type = None
+            else:
+                gamestate.winner = "d"
+                gamestate.draw_type = "stalemate"
+
+        # reset promotion state
         gamestate.promotion_active = False
         gamestate.promotion_square = None
         gamestate.promotion_color = None
         gamestate.promotion_click_locations = []
+
         if gamestate.game_over:
             return
 
-    if (
-        ai_active and not gamestate.promotion_active
-    ):  # the ai shouldnt move if promotion is active and should only move at the end of handle_promotion
+    if ai_active and not gamestate.promotion_active:
         if ai_can_double_move:
             move_ai(double=True, gamestate=gamestate)
         move_ai(gamestate=gamestate)
