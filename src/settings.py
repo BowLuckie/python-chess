@@ -1,6 +1,6 @@
 import pygame
 import pygame_gui
-import chess
+import chess as chess
 import pygame.transform
 
 pygame.init()
@@ -22,25 +22,25 @@ manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_fil
 font_big = pygame.font.SysFont("Arial", 40, bold=True)
 
 settings_text = chess.text_outline("Settings", font_size=100, outline_width=4)
-settings_rect = settings_text.get_rect(center=(chess.WIDTH//2, chess.HEIGHT//4))
+settings_rect = settings_text.get_rect(center=(chess.WIDTH // 2, chess.HEIGHT // 4))
 
 size600_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 - 60, 200, 50),
+    relative_rect=pygame.Rect(chess.WIDTH // 2 - 100, chess.HEIGHT // 2 - 60, 200, 50),
     text="600 x 600",
     manager=manager,
 )
 size800_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 , 200, 50),
+    relative_rect=pygame.Rect(chess.WIDTH // 2 - 100, chess.HEIGHT // 2, 200, 50),
     text="800 x 800",
-    manager=manager
+    manager=manager,
 )
 size1000_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 60, 200, 50),
+    relative_rect=pygame.Rect(chess.WIDTH // 2 - 100, chess.HEIGHT // 2 + 60, 200, 50),
     text="1000 x 1000",
-    manager=manager
+    manager=manager,
 )
 back_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(chess.WIDTH//2 - 100, chess.HEIGHT//2 + 120, 200, 50),
+    relative_rect=pygame.Rect(chess.WIDTH // 2 - 100, chess.HEIGHT // 2 + 120, 200, 50),
     text="back",
     manager=manager,
 )
@@ -49,8 +49,11 @@ sb = pygame.image.load(chess.resource_path(r"pieces\ws.png"))
 soldier_button = pygame.transform.scale(sb, (chess.SQUARE_SIZE, chess.SQUARE_SIZE))
 
 e = pygame.image.load(chess.resource_path(r"pieces\evil.png"))
-evil_text = pygame.transform.scale(e, (chess.SQUARE_SIZE * 4, chess.SQUARE_SIZE*2))
-evil_rect = evil_text.get_rect(center=(chess.WIDTH // 2, (chess.HEIGHT // 4) + chess.SQUARE_SIZE * 0.79))
+evil_text = pygame.transform.scale(e, (chess.SQUARE_SIZE * 4, chess.SQUARE_SIZE * 2))
+evil_rect = evil_text.get_rect(
+    center=(chess.WIDTH // 2, (chess.HEIGHT // 4) + chess.SQUARE_SIZE * 0.79)
+)
+
 
 def main():
     global restart_requested, evil_mode
@@ -81,7 +84,8 @@ def main():
 
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == back_button:
-                    import menu
+                    import src.menu as menu
+
                     menu.main()
                 elif event.ui_element == size600_button:
                     chess.settings["screen_size"] = 600
@@ -95,10 +99,11 @@ def main():
                     chess.settings["screen_size"] = 1000
                     chess.save_settings(chess.settings)
                     restart_requested = True
-                
+
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    import menu
+                    import src.menu as menu
+
                     menu.main()
 
             manager.process_events(event)
@@ -107,7 +112,7 @@ def main():
 
         screen.blit(blurred)
         screen.blit(settings_text, settings_rect)
-        screen.blit(soldier_button, (0*chess.SQUARE_SIZE,7*chess.SQUARE_SIZE))
+        screen.blit(soldier_button, (0 * chess.SQUARE_SIZE, 7 * chess.SQUARE_SIZE))
         manager.draw_ui(screen)
 
         if chess.settings.get("evil_mode"):
@@ -119,17 +124,20 @@ def main():
             running = False
 
     if restart_requested:
-        pygame.display.quit()   # close only the window
-        chess.restart_program() # never returns
+        pygame.display.quit()  # close only the window
+        chess.restart_program()  # never returns
 
     # normal exit back to menu
     pygame.display.quit()
     return
-    
+
 
 if __name__ == "__main__":
     try:
         main()
     except pygame.error as e:
-        if str(e) != "video system not initialized" or str(e) != "Surface is not initialized":
+        if (
+            str(e) != "video system not initialized"
+            or str(e) != "Surface is not initialized"
+        ):
             print(e)

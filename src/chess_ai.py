@@ -3,7 +3,7 @@ Movement and vision functions for the ai.
 """
 
 import pygame
-import pieces
+import src.pieces as pieces
 
 coordinate = pieces.coordinate
 
@@ -18,14 +18,14 @@ edge_pawn_penalty = 5
 DOUBLE_MOVE_PAWN_BONUS = 5
 
 PROGRESSION_TABLE = [
-    [-5,-4,-3,-3,-3,-3,-4,-5],
-    [-4,-2, 0, 0, 0, 0,-2,-4],
-    [-3, 0, 1, 1, 1, 1, 0,-3],
-    [-3, 0, 1, 2, 2, 1, 0,-3],
-    [-3, 0, 1, 2, 2, 1, 0,-3],
-    [-3, 0, 1, 1, 1, 1, 0,-3],
-    [-4,-2, 0, 0, 0, 0,-2,-4],
-    [-5,-4,-3,-3,-3,-3,-4,-5]
+    [-5, -4, -3, -3, -3, -3, -4, -5],
+    [-4, -2, 0, 0, 0, 0, -2, -4],
+    [-3, 0, 1, 1, 1, 1, 0, -3],
+    [-3, 0, 1, 2, 2, 1, 0, -3],
+    [-3, 0, 1, 2, 2, 1, 0, -3],
+    [-3, 0, 1, 1, 1, 1, 0, -3],
+    [-4, -2, 0, 0, 0, 0, -2, -4],
+    [-5, -4, -3, -3, -3, -3, -4, -5],
 ]
 
 PIECE_VALUES = {
@@ -39,10 +39,11 @@ PIECE_VALUES = {
     pieces.Dog: 4,
     pieces.Vampire: 12,
     pieces.Planet: 2.5,
-    pieces.King: 0 # becuase the king cannot be moved into check, capturing at the king when its an option is always a good move one game tree ahead
+    pieces.King: 0,  # becuase the king cannot be moved into check, capturing with the king when its an option is always a good move one game tree ahead
 }
 
-def move_ai(gamestate, double: bool=False) -> float | None:
+
+def move_ai(gamestate, double: bool = False) -> float | None:
     """
     calculates the most favourable move, preforms that move in this position and returns its score
     """
@@ -51,9 +52,13 @@ def move_ai(gamestate, double: bool=False) -> float | None:
 
     from random import choice, random
     from copy import deepcopy
-    from chess import (
-        insufficient_material, king_in_check,
-        move_piece, simulate_move, classes_options, move_counter
+    from src.chess import (
+        insufficient_material,
+        king_in_check,
+        move_piece,
+        simulate_move,
+        classes_options,
+        move_counter,
     )
 
     ai_legal_moves = []
@@ -104,8 +109,11 @@ def move_ai(gamestate, double: bool=False) -> float | None:
                 # Activity
                 score += ACTIVITY_BONUS
 
-                # center control 
-                if not isinstance(origin_piece, (pieces.Pawn, pieces.Soldier, pieces.Queen, pieces.Vampire)):
+                # center control
+                if not isinstance(
+                    origin_piece,
+                    (pieces.Pawn, pieces.Soldier, pieces.Queen, pieces.Vampire),
+                ):
                     score += PROGRESSION_TABLE[row][col]
                 elif isinstance(origin_piece, pieces.Queen):
                     score -= PROGRESSION_TABLE[row][col] * 0.5
@@ -115,7 +123,10 @@ def move_ai(gamestate, double: bool=False) -> float | None:
                     score -= edge_pawn_penalty
 
                 # try to avoid getting the queen out to early
-                if isinstance(origin_piece, (pieces.Queen, pieces.Vampire)) and move_counter < 12:
+                if (
+                    isinstance(origin_piece, (pieces.Queen, pieces.Vampire))
+                    and move_counter < 12
+                ):
                     score -= 8
 
                 # king movement penalty
@@ -190,19 +201,18 @@ def _sliding_attacks(board, row, col, directions, colour):
         max_distance=8,
         capture=True,
         jump=False,
-        self_captures=True
+        self_captures=True,
     )
 
+
 def _knight_attacks(row, col):
-    deltas = [
-        (-2,-1), (-2,1), (-1,-2), (-1,2),
-        (1,-2), (1,2), (2,-1), (2,1)
-    ]
+    deltas = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]
     return [
-        (row+dr, col+dc)
+        (row + dr, col + dc)
         for dr, dc in deltas
-        if 0 <= row+dr < 8 and 0 <= col+dc < 8
+        if 0 <= row + dr < 8 and 0 <= col + dc < 8
     ]
+
 
 def _pawn_attacks(row, col, colour):
     direction = -1 if colour == "w" else 1
@@ -214,22 +224,21 @@ def _pawn_attacks(row, col, colour):
             attacks.append((r, c))
     return attacks
 
+
 def _king_attacks(row, col):
-    deltas = [
-        (1,0),(-1,0),(0,1),(0,-1),
-        (1,1),(1,-1),(-1,1),(-1,-1)
-    ]
+    deltas = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
     return [
-        (row+dr, col+dc)
+        (row + dr, col + dc)
         for dr, dc in deltas
-        if 0 <= row+dr < 8 and 0 <= col+dc < 8
+        if 0 <= row + dr < 8 and 0 <= col + dc < 8
     ]
+
 
 def _attack_map(piece, board, row, col):
     """
     returns a the squares that are under fire
     """
-    from pieces import Pawn, Knight, Bishop, Rook, Queen, King
+    from src.pieces import Pawn, Knight, Bishop, Rook, Queen, King
 
     if isinstance(piece, Pawn):
         return _pawn_attacks(row, col, piece.colour)
@@ -241,21 +250,19 @@ def _attack_map(piece, board, row, col):
         return _king_attacks(row, col)
 
     if isinstance(piece, Rook):
-        dirs = [(1,0),(-1,0),(0,1),(0,-1)]
+        dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         return _sliding_attacks(board, row, col, dirs, piece.colour)
 
     if isinstance(piece, Bishop):
-        dirs = [(1,1),(1,-1),(-1,1),(-1,-1)]
+        dirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
         return _sliding_attacks(board, row, col, dirs, piece.colour)
 
     if isinstance(piece, Queen):
-        dirs = [
-            (1,0),(-1,0),(0,1),(0,-1),
-            (1,1),(1,-1),(-1,1),(-1,-1)
-        ]
+        dirs = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
         return _sliding_attacks(board, row, col, dirs, piece.colour)
 
     return []
+
 
 def _ai_square_is_attacked(board, square, by_colour) -> bool:
     sr, sc = square
@@ -271,9 +278,11 @@ def _ai_square_is_attacked(board, square, by_colour) -> bool:
 
     return False
 
+
 if __name__ == "__main__":
-    import chess
+    import src.chess as chess
+
     try:
         chess.main()
-    except pygame.error as e:  
+    except pygame.error as e:
         print(e)
