@@ -1,20 +1,19 @@
 from time import sleep
 import pygame
 import pygame_gui
-import chess as chess
-import settings as settings
+import src.chess as chess
+import src.settings as settings
 import pygame.transform
-
 
 pygame.init()
 
-ICON = pygame.image.load(chess.resource_path("pieces/bp.png"))
+ICON = pygame.image.load(chess.asset_path("pieces/bp.png"))
 screen = pygame.display.set_mode((chess.WIDTH, chess.HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
 
 
-theme_file = chess.resource_path("theme.json")
+theme_file = chess.asset_path("theme.json")
 manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_file)
 
 font_big = pygame.font.SysFont("Arial", 40, bold=True)

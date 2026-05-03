@@ -20,14 +20,11 @@ from typing import TYPE_CHECKING
 from pygame import error
 
 if TYPE_CHECKING:
-    from chess import (
+    from src.chess import (
         GameState,
-    )  # only when the interpreter is type checking, not at runtime
+    )  
 
 coordinate: TypeAlias = tuple[int, int]
-
-# Right now, every piece moves like a pawn, but it works
-
 
 def _move_helper(
     board,

@@ -43,6 +43,7 @@ import pygame
 from types import FunctionType
 from typing import TypeAlias
 import subprocess, sys, os, json, copy
+from pathlib import Path
 
 from src.chess_ai import move_ai
 
@@ -63,7 +64,6 @@ from src.pieces import (
     Vampire,
     Planet,
 )
-
 
 # ----------- DATA/SETUP -----------
 
@@ -337,13 +337,11 @@ BOARDS: dict[str, FunctionType] = {
 }
 
 
-def resource_path(relative_path: str) -> str:
-    """
-    Returns an absolute path to a resource relative to the script's directory.
-    """
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
+BASE_DIR = Path(__file__).resolve().parent.parent
+ASSETS_DIR = BASE_DIR / "assets"
 
+def asset_path(relative_path: str) -> str:
+    return str(ASSETS_DIR / relative_path)
 
 def restart_program():
     """
@@ -373,7 +371,7 @@ def get_board_mode() -> str:
     """
     looks in the settings file for the board mode
     """
-    path = resource_path("settings.json")
+    path = asset_path("settings.json")
     try:
         with open(path, "r") as f:
             data = json.load(f)
@@ -472,7 +470,7 @@ gamestate = GameState()
 
 set_screen_size(settings.get("screen_size", 800))
 
-ICON = pygame.image.load(resource_path("pieces/bp.png"))
+ICON = pygame.image.load(asset_path("pieces/bp.png"))
 screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
@@ -556,14 +554,14 @@ try:
     # load images
     for piece in pieces_list:
         # loop through each element in pieces_list and check if it has a corrosponding png in pieces/
-        piece_image = pygame.image.load(resource_path("pieces/" + piece + ".png"))
+        piece_image = pygame.image.load(asset_path("pieces/" + piece + ".png"))
         IMAGES[piece] = pygame.transform.scale(piece_image, (SQUARE_SIZE, SQUARE_SIZE))
 
     # other images
-    crown_image = pygame.image.load(resource_path("pieces/crown.png"))
+    crown_image = pygame.image.load(asset_path("pieces/crown.png"))
     CROWN = pygame.transform.scale(crown_image, (SQUARE_SIZE, SQUARE_SIZE))
 
-    draw_image = pygame.image.load(resource_path("pieces/draw.png"))
+    draw_image = pygame.image.load(asset_path("pieces/draw.png"))
     DRAW = pygame.transform.scale(draw_image, (SQUARE_SIZE, SQUARE_SIZE))
 
 except FileNotFoundError as error_message:
@@ -1144,7 +1142,7 @@ def piece_clicked(gamestate: GameState, mouse_pos: coordinate) -> coordinate | N
     piece = gamestate.board[row][col]
 
     if gamestate.game_over and (
-        (gamestate.white_turn and (row, col) in [(5, 4), (5, 3)])
+        ((row, col) in [(5, 4), (5, 3)])
     ):  # (5,4) and (5,3) are roughly the squares that the reset button sits on.
         gamestate.reset()
 

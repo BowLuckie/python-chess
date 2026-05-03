@@ -1,11 +1,12 @@
 import pygame
 import pygame_gui
-import chess as chess
 import pygame.transform
+
+import src.chess as chess
 
 pygame.init()
 
-ICON = pygame.image.load(chess.resource_path("pieces/bp.png"))
+ICON = pygame.image.load(chess.asset_path("pieces/bp.png"))
 screen = pygame.display.set_mode((chess.WIDTH, chess.HEIGHT))
 pygame.display.set_caption("Chess")
 pygame.display.set_icon(ICON)
@@ -16,7 +17,7 @@ restart_requested = False
 if "evil_mode" not in chess.settings:
     chess.settings["evil_mode"] = False
 
-theme_file = chess.resource_path("theme.json")
+theme_file = chess.asset_path("theme.json")
 manager = pygame_gui.UIManager((chess.WIDTH, chess.HEIGHT), theme_path=theme_file)
 
 font_big = pygame.font.SysFont("Arial", 40, bold=True)
@@ -45,10 +46,10 @@ back_button = pygame_gui.elements.UIButton(
     manager=manager,
 )
 
-sb = pygame.image.load(chess.resource_path(r"pieces\ws.png"))
+sb = pygame.image.load(chess.asset_path(r"pieces\ws.png"))
 soldier_button = pygame.transform.scale(sb, (chess.SQUARE_SIZE, chess.SQUARE_SIZE))
 
-e = pygame.image.load(chess.resource_path(r"pieces\evil.png"))
+e = pygame.image.load(chess.asset_path(r"pieces\evil.png"))
 evil_text = pygame.transform.scale(e, (chess.SQUARE_SIZE * 4, chess.SQUARE_SIZE * 2))
 evil_rect = evil_text.get_rect(
     center=(chess.WIDTH // 2, (chess.HEIGHT // 4) + chess.SQUARE_SIZE * 0.79)
